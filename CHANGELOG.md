@@ -4,9 +4,17 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-20
+
 ### Added
-- Support `pathLevels: "full"` to show the entire absolute working directory in the project badge, instead of being capped at the last 3 segments.
+- Support `pathLevels: "full"` to show the entire absolute working directory in the project badge, instead of being capped at the last 3 segments (#678).
 - Allow users to reorder visible first-line segments with `projectLineOrder` while preserving the existing default output (#680).
+
+### Fixed
+- Show each agent's resolved runtime model when the launch input omits a model alias, while preserving unknown and provider-qualified model identifiers (#679).
+
+### Security
+- Keep full working-directory paths terminal-safe across compact, expanded, and reordered layouts by stripping control and bidirectional characters before rendering (#678, #680).
 
 ## [0.5.1] - 2026-07-17
 
