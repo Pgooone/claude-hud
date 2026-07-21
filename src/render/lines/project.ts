@@ -72,12 +72,15 @@ export function renderProjectLine(ctx: RenderContext): string | null {
 
   let gitPart = '';
   const gitConfig = ctx.config?.gitStatus;
-  const showGit = gitConfig?.enabled ?? true;
+  const jjConfig = ctx.config?.jjStatus;
+  const isJj = ctx.gitStatus?.vcs === 'jj';
+  const showGit = isJj ? (jjConfig?.enabled ?? true) : (gitConfig?.enabled ?? true);
   const branchOverflow = gitConfig?.branchOverflow ?? 'truncate';
 
   if (showGit && ctx.gitStatus) {
+    const showDirty = isJj ? (jjConfig?.showDirty ?? true) : (gitConfig?.showDirty ?? true);
     const branchText = sanitizeDisplayText(
-      ctx.gitStatus.branch + ((gitConfig?.showDirty ?? true) && ctx.gitStatus.isDirty ? '*' : '')
+      ctx.gitStatus.branch + (showDirty && ctx.gitStatus.isDirty ? '*' : '')
     );
     const coloredBranch = gitBranchColor(branchText, colors);
     const linkedBranch = safeHyperlink(ctx.gitStatus.branchUrl, coloredBranch);
@@ -100,7 +103,12 @@ export function renderProjectLine(ctx: RenderContext): string | null {
       }
     }
 
-    gitPart = `${gitColor('git:(', colors)}${gitInner.join(' ')}${gitColor(')', colors)}`;
+    if (isJj && (jjConfig?.showConflicts ?? true) && ctx.gitStatus.conflict) {
+      gitInner.push(criticalColor('!conflict', colors));
+    }
+
+    const vcsLabel = isJj ? 'jj:(' : 'git:(';
+    gitPart = `${gitColor(vcsLabel, colors)}${gitInner.join(' ')}${gitColor(')', colors)}`;
   }
 
   const projectWithDirs = projectPart && addedDirsPart
