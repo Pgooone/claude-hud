@@ -300,13 +300,57 @@ test("resolveVcsStatus prefers jj over git and never calls getGitStatus", async 
       }),
       isJjRepo: () => true,
     },
-    makeConfig(),
+    makeConfig({ jjStatus: { enabled: true } }),
     "/some/jj/repo",
   );
 
   assert.equal(gitCalled, false);
   assert.equal(result?.vcs, "jj");
   assert.equal(result?.branch, "mybookmark");
+});
+
+test("resolveVcsStatus falls back to git when the jj probe returns null", async () => {
+  let gitCalled = false;
+
+  const result = await resolveVcsStatus(
+    {
+      getGitStatus: async () => {
+        gitCalled = true;
+        return { branch: "main", isDirty: false, ahead: 0, behind: 0 };
+      },
+      getJjStatus: async () => null,
+      isJjRepo: () => true,
+    },
+    makeConfig({ jjStatus: { enabled: true } }),
+    "/some/colocated/repo",
+  );
+
+  assert.equal(gitCalled, true);
+  assert.equal(result?.branch, "main");
+  assert.equal(result?.vcs, undefined);
+});
+
+test("resolveVcsStatus does not fall back to git when git status is disabled", async () => {
+  let gitCalled = false;
+
+  const result = await resolveVcsStatus(
+    {
+      getGitStatus: async () => {
+        gitCalled = true;
+        return { branch: "main", isDirty: false, ahead: 0, behind: 0 };
+      },
+      getJjStatus: async () => null,
+      isJjRepo: () => true,
+    },
+    makeConfig({
+      jjStatus: { enabled: true },
+      gitStatus: { enabled: false },
+    }),
+    "/some/jj/repo",
+  );
+
+  assert.equal(gitCalled, false);
+  assert.equal(result, null);
 });
 
 test("resolveVcsStatus falls back to git when isJjRepo is false", async () => {

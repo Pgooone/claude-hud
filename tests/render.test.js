@@ -62,6 +62,7 @@ function baseContext() {
       pathLevels: 1,
       elementOrder: ['project', 'context', 'usage', 'promptCache', 'memory', 'environment', 'tools', 'skills', 'mcp', 'agents', 'todos'],
       gitStatus: { enabled: true, showDirty: true, showAheadBehind: false, showFileStats: false, branchOverflow: 'truncate', pushWarningThreshold: 0, pushCriticalThreshold: 0 },
+      jjStatus: { enabled: true, showDirty: true, showConflicts: true },
       display: { showModel: true, showProject: true, showContextBar: true, contextValue: 'percent', showConfigCounts: true, showCost: false, showDuration: true, showSpeed: false, showTokenBreakdown: true, showUsage: true, usageValue: 'percent', usageBarEnabled: false, showResetLabel: true, showTools: true, showSkills: false, showMcp: false, showAgents: true, showTodos: true, showSessionTokens: false, showSessionName: false, showClaudeCodeVersion: false, showMemoryUsage: false, showPromptCache: false, promptCacheTtlSeconds: 300, showOutputStyle: false, mergeGroups: [['context', 'usage']], autocompactBuffer: 'enabled', usageThreshold: 0, sevenDayThreshold: 80, environmentThreshold: 0, customLine: '' },
       colors: {
         context: 'green',
@@ -1470,6 +1471,53 @@ test('renderProjectLine ignores gitStatus.showAheadBehind/showFileStats for jj s
   const line = stripAnsi(renderProjectLine(ctx) ?? '');
   assert.equal(line.includes('↑'), false);
   assert.equal(/\[[+-]/.test(line), false, `expected no file-stats bracket, got ${line}`);
+});
+
+test('renderSessionLine renders jj dirty and conflict state in compact layout', () => {
+  const ctx = baseContext();
+  ctx.stdin.cwd = '/tmp/my-project';
+  ctx.gitStatus = {
+    branch: 'mybookmark',
+    isDirty: true,
+    ahead: 9,
+    behind: 8,
+    fileStats: { modified: 7, added: 6, deleted: 5, untracked: 4, trackedFiles: [] },
+    vcs: 'jj',
+    conflict: true,
+  };
+  ctx.config.gitStatus.showAheadBehind = true;
+  ctx.config.gitStatus.showFileStats = true;
+
+  const line = stripAnsi(renderSessionLine(ctx));
+  assert.ok(line.includes('jj:(mybookmark* !conflict)'), `expected compact jj parity, got ${line}`);
+  assert.equal(line.includes('git:('), false);
+  assert.equal(line.includes('↑9'), false);
+  assert.equal(line.includes('↓8'), false);
+  assert.equal(line.includes('!7'), false);
+});
+
+test('renderSessionLine respects compact jj dirty and conflict toggles', () => {
+  const ctx = baseContext();
+  ctx.stdin.cwd = '/tmp/my-project';
+  ctx.gitStatus = { branch: 'mybookmark', isDirty: true, ahead: 0, behind: 0, vcs: 'jj', conflict: true };
+  ctx.config.jjStatus.showDirty = false;
+  ctx.config.jjStatus.showConflicts = false;
+
+  const line = stripAnsi(renderSessionLine(ctx));
+  assert.ok(line.includes('jj:(mybookmark)'), `expected jj status, got ${line}`);
+  assert.equal(line.includes('mybookmark*'), false);
+  assert.equal(line.includes('!conflict'), false);
+});
+
+test('renderSessionLine hides compact jj status when its opt-in is disabled', () => {
+  const ctx = baseContext();
+  ctx.stdin.cwd = '/tmp/my-project';
+  ctx.gitStatus = { branch: 'mybookmark', isDirty: false, ahead: 0, behind: 0, vcs: 'jj', conflict: false };
+  ctx.config.jjStatus.enabled = false;
+
+  const line = stripAnsi(renderSessionLine(ctx));
+  assert.equal(line.includes('jj:('), false);
+  assert.equal(line.includes('git:('), false);
 });
 
 test('renderSessionLine shows the enabled auth segment in compact layout', () => {

@@ -277,7 +277,7 @@ export const DEFAULT_CONFIG: HudConfig = {
     pushCriticalThreshold: 0,
   },
   jjStatus: {
-    enabled: true,
+    enabled: false,
     showDirty: true,
     showConflicts: true,
   },

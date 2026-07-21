@@ -180,7 +180,7 @@ Simplified and Traditional Chinese HUD labels are available as explicit opt-ins.
 | `gitStatus.pushCriticalThreshold` | number | 0 | Color the ahead count with the critical color at or above this unpushed-commit count (`0` disables it) |
 | `gitStatus.showFileStats` | boolean | false | Show file change counts `!M +A ✘D ?U` |
 | `gitStatus.branchOverflow` | `truncate` \| `wrap` | `truncate` | Keep current truncation behavior or let the git block wrap onto its own line boundary when possible |
-| `jjStatus.enabled` | boolean | true | Show jj (Jujutsu) status in HUD. When a `.jj` directory is found, jj is used instead of git for that repo — never both |
+| `jjStatus.enabled` | boolean | false | Opt in to jj (Jujutsu) status. When enabled and a real `.jj` directory is found, jj is used instead of git for that repo — never both |
 | `jjStatus.showDirty` | boolean | true | Show `*` when the working-copy commit differs from its parent |
 | `jjStatus.showConflicts` | boolean | true | Show a `!conflict` marker when the working-copy commit has an unresolved conflict |
 | `display.showModel` | boolean | true | Show model name `[Opus]` |
@@ -388,9 +388,11 @@ Example fallback snapshot:
 
 ### Jujutsu (jj) support
 
-When a `.jj` directory is found in (or above) the working directory, the HUD
-shows jj-native status instead of git — the two are mutually exclusive per
-invocation, even in a colocated jj+git repo.
+Set `jjStatus.enabled` to `true` to opt in. When a real `.jj` directory is found
+in (or above) the working directory, the HUD shows jj-native status instead of
+git — the two are mutually exclusive per invocation, even in a colocated jj+git
+repo. If jj cannot be queried safely, a colocated repository falls back to its
+existing git status.
 
 **With a bookmark:** `[Opus] │ my-project jj:(mybookmark)`
 
@@ -404,6 +406,12 @@ Ahead/behind counts and per-file change stats are git-only in this version —
 jj's equivalent requires more expensive revset queries against
 `remote_bookmarks()`, so they're left out to keep the jj status fetch to a
 single subprocess call.
+
+The HUD runs jj in prompt-safe, read-only mode: it disables the pager, ignores
+the live working copy, and reads the current operation without reconciling it.
+That avoids snapshotting files or mutating repository state during statusline
+refreshes. As a result, the dirty marker reflects jj's most recent working-copy
+snapshot and can remain stale until another jj command records new changes.
 
 ### Auto-Refresh
 
@@ -444,7 +452,7 @@ Leaving it unset (or setting an explicit negative: `0`, `false`, `off`, `no`) ke
 
 **jj status missing, or seeing `git:(...)` in a jj repo?**
 - Verify a `.jj` directory exists at or above the working directory
-- Check `jjStatus.enabled` is not `false` in config
+- Set `jjStatus.enabled` to `true` in config (jj support is opt-in)
 - Verify the `jj` binary is installed and on `PATH`
 
 **Tool/skill/MCP/agent/todo lines missing?**

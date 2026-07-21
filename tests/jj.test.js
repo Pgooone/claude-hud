@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -40,6 +40,140 @@ test('getJjStatus returns null for a non-jj directory', async () => {
   try {
     const result = await getJjStatus(dir);
     assert.equal(result, null);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('getJjStatus uses a fixed read-only bounded invocation', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-runner-'));
+  let invocation;
+  try {
+    const result = await getJjStatus(dir, async (file, args, options) => {
+      invocation = { file, args: [...args], options };
+      return { stdout: 'qpvuntsm\x1fmain\x1f0\x1f0\n' };
+    });
+
+    assert.equal(result?.branch, 'main');
+    assert.equal(invocation?.file, 'jj');
+    assert.deepEqual(invocation?.args.slice(0, 4), [
+      '--ignore-working-copy',
+      '--at-operation=@',
+      '--no-pager',
+      'log',
+    ]);
+    assert.deepEqual(invocation?.args.slice(4, 10), [
+      '-r', '@', '--no-graph', '--color', 'never', '-T',
+    ]);
+    assert.match(invocation?.args[10] ?? '', /local_bookmarks/);
+    assert.equal(invocation?.options.cwd, await realpath(dir));
+    assert.equal(invocation?.options.timeout, 2000);
+    assert.equal(invocation?.options.maxBuffer, 16 * 1024);
+    assert.equal(invocation?.options.encoding, 'utf8');
+    assert.equal(invocation?.options.shell, false);
+    assert.equal(invocation?.options.windowsHide, true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('getJjStatus strictly validates field count and boolean flags', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-parse-'));
+  try {
+    for (const stdout of [
+      'change\x1fmain\x1f0',
+      'change\x1fmain\x1f0\x1f0\x1fextra',
+      'change\x1fmain\x1fyes\x1f0',
+      'change\x1fmain\x1f0\x1f2',
+      '\x1fmain\x1f0\x1f0',
+      'change\x1fmain\x1f0\x1f0\nextra',
+      'change\x1fmain\x1e\x1f0\x1f0',
+    ]) {
+      const result = await getJjStatus(dir, async () => ({ stdout }));
+      assert.equal(result, null, `expected malformed output to be rejected: ${JSON.stringify(stdout)}`);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('getJjStatus preserves commas and separates local bookmarks safely', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-bookmarks-'));
+  try {
+    const result = await getJjStatus(
+      dir,
+      async () => ({ stdout: 'qpvuntsm\x1ffeature,one\x1efeature-two\x1f1\x1f0' }),
+    );
+    assert.equal(result?.branch, 'feature,one');
+    assert.equal(result?.isDirty, true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('getJjStatus sanitizes terminal controls and caps the chosen label', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-label-'));
+  try {
+    const unsafe = `safe\x1b]8;;https://evil.example\x07link\x1b]8;;\x07\u202E${'x'.repeat(100)}`;
+    const result = await getJjStatus(
+      dir,
+      async () => ({ stdout: `qpvuntsm\x1f${unsafe}\x1f0\x1f1` }),
+    );
+    assert.ok(result);
+    assert.equal(result.branch.length, 64);
+    assert.equal(result.branch.includes('\x1b'), false);
+    assert.equal(result.branch.includes('\u202E'), false);
+    assert.equal(result.conflict, true);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('isJjRepo resolves the cwd before walking', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-realpath-'));
+  const link = `${dir}-link`;
+  try {
+    await mkdir(path.join(dir, '.jj'));
+    await symlink(dir, link, 'dir');
+    assert.equal(isJjRepo(link), true);
+  } finally {
+    await rm(link, { recursive: true, force: true });
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('isJjRepo rejects a symlinked .jj marker', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-symlink-'));
+  const markerTarget = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-marker-'));
+  try {
+    await symlink(markerTarget, path.join(dir, '.jj'), 'dir');
+    assert.equal(isJjRepo(dir), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    await rm(markerTarget, { recursive: true, force: true });
+  }
+});
+
+test('isJjRepo stops at a nearer .git marker', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-boundary-'));
+  const nested = path.join(dir, 'nested');
+  const deep = path.join(nested, 'deep');
+  try {
+    await mkdir(path.join(dir, '.jj'));
+    await mkdir(deep, { recursive: true });
+    await writeFile(path.join(nested, '.git'), 'gitdir: elsewhere\n');
+    assert.equal(isJjRepo(deep), false);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test('isJjRepo prefers a same-directory .jj marker over .git', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-jj-colocated-'));
+  try {
+    await mkdir(path.join(dir, '.jj'));
+    await mkdir(path.join(dir, '.git'));
+    assert.equal(isJjRepo(dir), true);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -93,7 +227,7 @@ test('isJjRepo detects a jj repo from a nested subdirectory', { skip: skipReason
   try {
     execFileSync('jj', ['git', 'init'], { cwd: dir, stdio: 'ignore' });
     const nested = path.join(dir, 'a', 'b', 'c');
-    execFileSync('mkdir', ['-p', nested]);
+    await mkdir(nested, { recursive: true });
 
     assert.equal(isJjRepo(nested), true);
   } finally {

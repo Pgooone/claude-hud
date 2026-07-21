@@ -59,9 +59,8 @@ export function isHudDisabled(env: NodeJS.ProcessEnv = process.env): boolean {
 }
 
 /**
- * Picks exactly one VCS backend per invocation: jj when a `.jj` marker is
- * found (cheap, subprocess-free check) and enabled, otherwise git. Never runs
- * both, so colocated jj+git repos only pay for one subprocess call.
+ * Prefers jj when an eligible `.jj` marker is found and the opt-in is enabled.
+ * If the bounded jj probe fails, Git remains the safe compatibility fallback.
  */
 export async function resolveVcsStatus(
   deps: Pick<MainDeps, "getGitStatus" | "getJjStatus" | "isJjRepo">,
@@ -70,7 +69,8 @@ export async function resolveVcsStatus(
 ): Promise<GitStatus | null> {
   if (!cwd) return null;
   if (config.jjStatus.enabled && deps.isJjRepo(cwd)) {
-    return deps.getJjStatus(cwd);
+    const jjStatus = await deps.getJjStatus(cwd);
+    if (jjStatus) return jjStatus;
   }
   if (config.gitStatus.enabled) {
     return deps.getGitStatus(cwd);
