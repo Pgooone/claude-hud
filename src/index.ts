@@ -6,6 +6,7 @@ import { getGitStatus } from "./git.js";
 import { getJjStatus, isJjRepo } from "./jj.js";
 import { loadConfig } from "./config.js";
 import { parseExtraCmdArg, runExtraCmd } from "./extra-cmd.js";
+import { collectPlancost } from "./plancost.js";
 import { getClaudeCodeVersion } from "./version.js";
 import { getMemoryUsage } from "./memory.js";
 import { readAuthInfo } from "./auth.js";
@@ -34,6 +35,7 @@ export type MainDeps = {
   loadConfig: typeof loadConfig;
   parseExtraCmdArg: typeof parseExtraCmdArg;
   runExtraCmd: typeof runExtraCmd;
+  collectPlancost: typeof collectPlancost;
   getClaudeCodeVersion: typeof getClaudeCodeVersion;
   getMemoryUsage: typeof getMemoryUsage;
   readAuthInfo: typeof readAuthInfo;
@@ -98,6 +100,7 @@ export async function main(overrides: Partial<MainDeps> = {}): Promise<void> {
     loadConfig,
     parseExtraCmdArg,
     runExtraCmd,
+    collectPlancost,
     getClaudeCodeVersion,
     getMemoryUsage,
     readAuthInfo,
@@ -181,6 +184,10 @@ export async function main(overrides: Partial<MainDeps> = {}): Promise<void> {
     const extraCmd = deps.parseExtraCmdArg();
     const extraLabel = extraCmd ? await deps.runExtraCmd(extraCmd) : null;
 
+    const plancostData = config.plancost.enabled
+      ? await deps.collectPlancost(config, stdin, transcript)
+      : [];
+
     const sessionDuration = formatSessionDuration(
       transcript.sessionStart,
       deps.now,
@@ -218,6 +225,7 @@ export async function main(overrides: Partial<MainDeps> = {}): Promise<void> {
       effortLevel: effortInfo?.level,
       effortSymbol: effortInfo?.symbol,
       authInfo,
+      plancostData,
     };
 
     deps.render(ctx);

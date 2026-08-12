@@ -308,6 +308,89 @@ Set `display.showResetLabel` to `false` if you want shorter usage countdowns suc
 
 Set `display.usageCompact` to `true` if you want the shorter usage-only form, for example `5h: 25% (1h 30m)`. Compact usage takes precedence over `display.usageBarEnabled`.
 
+### Plancost (third-party model providers)
+
+A `plancost` first-line segment shows **coding-plan usage or account balance
+for third-party domestic model providers**, queried directly from the provider
+APIs (Kimi For Coding, DeepSeek, Zhipu GLM). It is **disabled by default** —
+you must opt in and fill in API keys. This complements the official
+`rate_limits` display (which requires an Anthropic subscriber login and is
+unavailable to API-key / proxy users) and the external usage snapshot path:
+plancost fetches provider data itself instead of reading a sidecar file.
+
+```
+🟡 Kimi 5h 15% (03:44) · week 69% (08/13)      ← Kimi coding plan (5h + weekly)
+💰 DS ¥40.96                                   ← DeepSeek account balance
+```
+
+Health markers: 🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85% (worst window wins).
+DeepSeek shows balance only. The HUD strips ANSI from external data, so the
+emoji carry the color signal.
+
+#### Configuration
+
+```jsonc
+// ~/.claude/plugins/claude-hud/config.json
+{
+  "plancost": {
+    "enabled": true,
+    "displayMode": "auto",        // "auto" | "all"
+    "providers": {
+      "kimi":     { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek": { "apiKey": "sk-...",      "models": ["deepseek"] },
+      "glm":      { "apiKey": "id.secret",   "models": ["glm", "chatglm"],
+                    "endpoint": "https://open.bigmodel.cn" }   // optional override
+    }
+  }
+}
+```
+
+- **`enabled`**: master switch. `false` means zero network calls.
+- **`displayMode`**:
+  - `auto` (default): show only the provider whose `models` prefix matches
+    the **actual served model** (transcript `message.model`, stdin model as
+    fallback before the first assistant message). Subagent turns never
+    override the main-session model.
+  - `all`: show every provider that has a non-empty `apiKey`, in config
+    key order.
+- **`providers`**: keys are fixed (`kimi` / `deepseek` / `glm`); unknown keys
+  are dropped. `models` are case-insensitive name prefixes (e.g. `k3` matches
+  `k3[1M]` and `k3-256`). `endpoint` is only needed for the GLM international
+  site (`https://api.z.ai`).
+
+Where each key comes from:
+- **Kimi For Coding**: `sk-kimi-...`, create at https://www.kimi.com/code/console
+- **DeepSeek**: `sk-...`, create at https://platform.deepseek.com/api_keys
+- **Zhipu GLM**: `{id}.{secret}` (no `sk-` prefix), create at
+  https://open.bigmodel.cn
+
+#### Position on the line
+
+The segment renders after the cost segment by default. Reorder it with
+`projectLineOrder`, e.g. right after the model badge:
+
+```jsonc
+{ "projectLineOrder": ["model", "plancost"] }
+```
+
+#### How it works
+
+- Queries: Kimi `GET api.kimi.com/coding/v1/usages` (Bearer); DeepSeek
+  `GET api.deepseek.com/user/balance` (Bearer); GLM
+  `GET {endpoint}/api/monitor/usage/quota/limit` (**bare key, no Bearer** —
+  a Bearer prefix fails GLM auth).
+- Caching: one file per provider under
+  `~/.claude/plugins/claude-hud/plancost-cache/`, 5-minute TTL, keyed by a
+  hash of the apiKey — swapping keys invalidates old data immediately.
+- Degradation: fresh cache → request (2s timeout) → stale cache for the same
+  key → segment hidden. Failures never break the HUD.
+- The `/claude-hud:setup` Step 4 and `/claude-hud:configure` Q7 wizards guide
+  through enabling providers, entering keys, display mode, and placement.
+  When an Anthropic official OAuth login is detected, the wizard asks whether
+  you still want third-party plancost (the official `rate_limits` usage is
+  already shown). Keys are written to `config.json` as plain text — do not
+  share that file.
+
 ### Security Notes
 
 ClaudeHUD is local-only by design. It does not make network requests, scrape credentials, or call undocumented Claude APIs. It reads the statusline JSON from stdin, the current session transcript path supplied by Claude Code, selected Claude configuration files under `~/.claude`, and git metadata for the current workspace.

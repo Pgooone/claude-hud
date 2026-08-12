@@ -3,6 +3,38 @@ description: Configure claude-hud as your statusline
 allowed-tools: Bash, Read, Edit, AskUserQuestion
 ---
 
+## Step -1: Detect Language (Run First)
+
+**IMPORTANT**: Every question and user-facing message below is provided in both
+English (EN) and Simplified Chinese (ZH). Read the HUD config and pick the
+language BEFORE asking anything:
+
+```bash
+# macOS/Linux
+if [ -f "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/claude-hud/config.json" ]; then
+  LANG_HUD=$(node -e "try { const c = JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude/plugins/claude-hud/config.json', 'utf8')); process.stdout.write(c.language || 'en'); } catch { process.stdout.write('en'); }" 2>/dev/null || echo en)
+else
+  LANG_HUD=en
+fi
+```
+
+**Windows (PowerShell)**:
+```powershell
+$langHud = "en"
+$cfgPath = Join-Path (if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join-Path $HOME ".claude" }) "plugins\claude-hud\config.json"
+if (Test-Path $cfgPath) {
+  try { $langHud = (Get-Content $cfgPath -Raw | ConvertFrom-Json).language } catch {}
+}
+```
+
+- `LANG_HUD` = `en` → use the **EN** variant of every question below
+- `LANG_HUD` = `zh-Hans` / `zh-Hant` / `zh` / `zh-TW` → use the **ZH (简体中文)** variant
+
+For any user-facing AskUserQuestion, if the EN and ZH variants differ, show
+the one matching `LANG_HUD` (EN questions stay fully functional in English
+for everyone; ZH adds Simplified Chinese). Technical shell snippets stay in
+English in both cases.
+
 **Note**: Placeholders like `{RUNTIME_PATH}`, `{SOURCE}`, and `{GENERATED_COMMAND}` should be substituted with actual detected values.
 
 ## Step 0: Detect Ghost Installation (Run First)
@@ -523,13 +555,13 @@ if (Test-Path $settingsPath) {
 
 **If the statusline belongs to a known project or is a custom script**: Use AskUserQuestion to ask the user what to do.
 
-Use AskUserQuestion:
-- header: "Existing statusline detected"
-- question: "Found an existing statusLine in settings.json:\n\n  command preview: {REDACTED_COMMAND_PREVIEW}\n  source: {SOURCE_LABEL}\n\nWhat would you like to do?"
+Use AskUserQuestion (按 `LANG_HUD` 选择语言):
+- header: "Existing statusline detected" / "检测到已有状态栏"
+- question: EN: "Found an existing statusLine in settings.json:\n\n  command preview: {REDACTED_COMMAND_PREVIEW}\n  source: {SOURCE_LABEL}\n\nWhat would you like to do?" | ZH: "在 settings.json 中发现了已有的 statusLine 配置：\n\n  命令预览：{REDACTED_COMMAND_PREVIEW}\n  来源：{SOURCE_LABEL}\n\n你想怎么处理？"
 - options:
-  - "Replace it with claude-hud (your current setup will be backed up)"
-  - "Keep my current statusline and exit setup (settings stay unchanged)"
-  - "Cancel setup without changing settings"
+  - EN: "Replace it with claude-hud (your current setup will be backed up)" | ZH: "替换为 claude-hud（当前配置会备份）"
+  - EN: "Keep my current statusline and exit setup (settings stay unchanged)" | ZH: "保留当前状态栏并退出（不改设置）"
+  - EN: "Cancel setup without changing settings" | ZH: "取消安装（不改设置）"
 
 Set `{REDACTED_COMMAND_PREVIEW}` to `EXISTING_COMMAND_PREVIEW` on macOS/Linux or `$existingCommandPreview` on Windows. Use only the redacted/truncated preview in the prompt and normal output. Do not print the full previous command because it may contain tokens or secrets.
 
@@ -650,15 +682,16 @@ Then continue directly to Step 4 in the same session.
 After the statusLine is applied, ask the user if they'd like to enable additional HUD features beyond the default 2-line display.
 
 Use AskUserQuestion:
-- header: "Extras"
-- question: "Enable any optional HUD features? (all hidden by default)"
+- header: "Extras" / "扩展功能"
+- question: EN: "Enable any optional HUD features? (all hidden by default)" | ZH: "要启用哪些可选 HUD 功能？（默认全部隐藏）"
 - multiSelect: true
 - options:
-  - "Tools activity" — Shows running/completed tools (◐ Edit: file.ts | ✓ Read ×3)
-  - "Agents & Todos" — Shows subagent status and todo progress
-  - "Session info" — Shows session duration and config counts (CLAUDE.md, rules, MCPs)
-  - "Session name" — Shows session slug or custom title from /rename
-  - "Custom line" — Display a custom phrase in the HUD
+  - "Tools activity" — EN: Shows running/completed tools (◐ Edit: file.ts | ✓ Read ×3) | ZH: 显示运行/完成中的工具
+  - "Agents & Todos" — EN: Shows subagent status and todo progress | ZH: 显示子代理状态和任务进度
+  - "Session info" — EN: Shows session duration and config counts (CLAUDE.md, rules, MCPs) | ZH: 显示会话时长和配置统计
+  - "Session name" — EN: Shows session slug or custom title from /rename | ZH: 显示会话名称
+  - "Custom line" — EN: Display a custom phrase in the HUD | ZH: 显示自定义短语
+  - "Plancost 额度显示" — EN: Third-party coding-plan usage/balance (Kimi/DeepSeek/GLM), requires API keys | ZH: 第三方套餐额度/余额显示（Kimi/DeepSeek/GLM），需填 API key
 
 **If user selects any options**, write `plugins/claude-hud/config.json` inside the Claude config directory (`${CLAUDE_CONFIG_DIR:-$HOME/.claude}` on bash, `$env:CLAUDE_CONFIG_DIR` or `Join-Path $HOME ".claude"` on PowerShell). Create directories if needed:
 
@@ -669,6 +702,7 @@ Use AskUserQuestion:
 | Session info | `display.showDuration: true, display.showConfigCounts: true` |
 | Session name | `display.showSessionName: true` |
 | Custom line | `display.customLine: "<user's text>"` — ask user for the text (max 80 chars) |
+| Plancost 额度显示 | `plancost.enabled: true` 及 `plancost.displayMode`、`plancost.providers`、`projectLineOrder`（见 Step 4.6 向导；未选中则**不写任何 plancost 键**） |
 
 Merge with existing config if the file already exists. Only write keys the user selected — don't write `false` for unselected items (defaults handle that).
 
@@ -680,13 +714,13 @@ Claude Code only re-runs the statusline after an interaction (a new assistant me
 
 Of those, only the usage reset countdown is shown by default — session duration and the prompt-cache countdown tick only if the user enabled them (e.g. "Session info" in Step 4, or via config). Mention this if the user seems unsure whether the timer is worth it.
 
-Ask with AskUserQuestion:
-- header: "Auto-refresh"
-- question: "Re-run the HUD on a timer so time-based info (session duration, usage countdowns) stays current between messages?"
+Ask with AskUserQuestion（按 `LANG_HUD` 选择语言）:
+- header: "Auto-refresh" / "自动刷新"
+- question: EN: "Re-run the HUD on a timer so time-based info (session duration, usage countdowns) stays current between messages?" | ZH: "是否定时刷新 HUD，让基于时间的信息（会话时长、额度倒计时）在消息间隙保持最新？"
 - options:
-  - "Every 5 seconds (Recommended)" — Keeps countdowns fresh with negligible overhead
-  - "Every 1 second" — Smoothest ticking; re-runs the HUD command far more often
-  - "No timer" — HUD updates only after interactions (Claude Code's default)
+  - EN: "Every 5 seconds (Recommended)" — Keeps countdowns fresh with negligible overhead | ZH: "每 5 秒（推荐）—— 开销可忽略"
+  - EN: "Every 1 second" — Smoothest ticking; re-runs the HUD command far more often | ZH: "每 1 秒 —— 最平滑的计时"
+  - EN: "No timer" — HUD updates only after interactions (Claude Code's default) | ZH: "不设定时 —— 仅在交互后更新（Claude Code 默认）"
 
 **If the user picks an interval**, merge `refreshInterval: <N>` into the **existing** `statusLine` object in `settings.json` — preserve `type`, `command`, and any other keys. Follow the same rules as Step 3: real JSON serializer, no BOM on Windows, retry once on a concurrent-modification error. Do not re-create the backup; the Step 2.5.3 backup already covers this session.
 
@@ -700,13 +734,122 @@ Each refresh re-runs the full HUD command (runtime startup, transcript parse, gi
 
 ---
 
+## Step 4.6: Plancost 额度显示向导（fork/PR 功能）
+
+**仅当用户在上一步勾选了 "Plancost 额度显示" 时执行本节**；未勾选则跳过，不写任何 `plancost` 键。
+
+### 4.6.0 官方登录检测（OAuth detection）
+
+**先用 Bash 检测当前 Claude Code 是否登录 Anthropic 官方账号**（官方 coding plan 用户：claude-hud 的 usage 段已显示官方 rate_limits 额度，第三方 plancost 可能重复）：
+
+**macOS/Linux**:
+```bash
+SETTINGS="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+CLAUDE_JSON="${CLAUDE_CONFIG_DIR:-$HOME/.claude}.json"
+BASE_URL=$(node -e "try { const s = JSON.parse(require('fs').readFileSync('$SETTINGS', 'utf8')); process.stdout.write(s.env?.ANTHROPIC_BASE_URL || s.env?.ANTHROPIC_API_BASE_URL || ''); } catch { }" 2>/dev/null)
+API_KEY=$(node -e "try { const s = JSON.parse(require('fs').readFileSync('$SETTINGS', 'utf8')); process.stdout.write(s.env?.ANTHROPIC_API_KEY || ''); } catch { }" 2>/dev/null)
+AUTH_TOKEN=$(node -e "try { const s = JSON.parse(require('fs').readFileSync('$SETTINGS', 'utf8')); process.stdout.write(s.env?.ANTHROPIC_AUTH_TOKEN || ''); } catch { }" 2>/dev/null)
+HAS_OAUTH=$(node -e "try { const c = JSON.parse(require('fs').readFileSync('$CLAUDE_JSON', 'utf8')); process.stdout.write(c.oauthAccount ? '1' : '0'); } catch { process.stdout.write('0'); }" 2>/dev/null)
+```
+
+**Windows (PowerShell)**:
+```powershell
+$settingsPath = if ($env:CLAUDE_CONFIG_DIR) { Join-Path $env:CLAUDE_CONFIG_DIR "settings.json" } else { Join-Path $HOME ".claude\settings.json" }
+$claudeJsonPath = if ($env:CLAUDE_CONFIG_DIR) { "$env:CLAUDE_CONFIG_DIR.json" } else { "$HOME\.claude.json" }
+$baseUrl = ""; $apiKey = ""; $authToken = ""; $hasOAuth = "0"
+try { $j = Get-Content $settingsPath -Raw | ConvertFrom-Json; $baseUrl = $j.env.ANTHROPIC_BASE_URL; $apiKey = $j.env.ANTHROPIC_API_KEY; $authToken = $j.env.ANTHROPIC_AUTH_TOKEN } catch {}
+try { $hasOAuth = if ((Get-Content $claudeJsonPath -Raw | ConvertFrom-Json).oauthAccount) { "1" } else { "0" } } catch {}
+```
+
+**判定逻辑（顺序判断，命中即止）**：
+1. 环境变量 `CLAUDE_CODE_USE_BEDROCK` 或 `CLAUDE_CODE_USE_VERTEX` 为 `1` → Bedrock/Vertex，**不提示**（usage 段被隐藏）
+2. `$BASE_URL` 非空且不是以 `https://api.anthropic.com` 开头 → **第三方中转**，**不提示**（正是 plancost 的目标用户）
+3. `$API_KEY` 非空 → API key 计费（无 rate_limits），**不提示**
+4. `$AUTH_TOKEN` 非空 → 中转 token，**不提示**
+5. `$HAS_OAUTH` = `1` → **OFFICIAL_OAUTH**（官方 coding plan）→ **提示**（继续下面的 AskUserQuestion）
+6. 其他 → UNKNOWN，**不提示**
+
+**仅当判定为 OFFICIAL_OAUTH 时**，用 AskUserQuestion（按 `LANG_HUD` 选择语言）：
+- header: "Official plan detected" / "检测到官方套餐"
+- question: EN: "You are signed in with an Anthropic official coding plan — the HUD's usage segment already shows the official rate limits. Do you also want to enable third-party plancost display (Kimi/DeepSeek/GLM)?" | ZH: "检测到你已登录 Anthropic 官方 coding plan，HUD 的 usage 段已显示官方额度。是否还要启用第三方 plancost 额度显示（Kimi/DeepSeek/GLM）？"
+- options:
+  - "Enable plancost" / "仍启用" — Continue to the plancost wizard below
+  - "Skip" / "跳过" — Do not write any plancost keys
+
+**If the user chooses Skip (or the detection is not OFFICIAL_OAUTH)**: continue below only when the user still wants plancost (they may have picked "Plancost" explicitly — treat the detection as informational; if they picked Skip, do not write plancost keys and skip 4.6.1-4.6.5).
+
+### 4.6.1 逐家询问启用并收集 key
+
+对 **Kimi → DeepSeek → 智谱 GLM** 依次询问（每家独立，用 AskUserQuestion，按 `LANG_HUD` 选择语言）：
+
+- header: "Provider" / "供应商"
+- question: EN: "Enable {provider} plancost display? ({key format hint})" | ZH: "启用 {provider} 的 plancost 额度显示？（{key 格式提示}）"
+- options:
+  - "Enter key and enable" / "填写 key 并启用"
+  - "Skip" / "跳过"
+  - Kimi：Kimi For Coding key，形如 `sk-kimi-...`，在 https://www.kimi.com/code/console 创建
+  - DeepSeek：形如 `sk-...`，在 https://platform.deepseek.com/api_keys 创建
+  - 智谱 GLM：形如 `{id}.{secret}`（不含 `sk-` 前缀），在 https://open.bigmodel.cn 创建
+- 用户选择 "填写 key 并启用" 后，用 AskUserQuestion 收集 key 文本（用户通过 Other 输入）
+
+**安全红线（全程遵守）**：API key 只能通过文件写入 API（Write/Edit 工具 + JSON 序列化）写入 `~/.claude/plugins/claude-hud/config.json`（Windows 上为 `%USERPROFILE%\.claude\plugins\claude-hud\config.json`）。**严禁**把 key 放进 shell 命令行参数、echo 输出、settings.json 或任何命令字符串（防进程列表泄露）。写入后提醒用户 key 为明文存储。
+
+### 4.6.2 确认模型前缀（可跳过用默认）
+
+每家启用后，确认 `models` 前缀（AskUserQuestion，可跳过用默认）：
+- 默认建议：Kimi `["k3", "kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm", "chatglm"]`（按模型名前缀匹配，小写不敏感）
+- 用户可 Other 输入自定义前缀（逗号分隔）
+- 说明：EN: "Model names starting with these prefixes map to this provider (e.g. k3[1M] → Kimi, deepseek-v4-flash[1M] → DeepSeek)" | ZH: "模型名以这些前缀开头时视为该供应商（如 k3[1M] → Kimi、deepseek-v4-flash[1M] → DeepSeek）"
+
+### 4.6.3 显示模式
+
+AskUserQuestion（按 `LANG_HUD` 选择语言）:
+- header: "Display mode" / "显示模式"
+- question: EN: "Which providers should the plancost segment show?" | ZH: "plancost 段显示哪些供应商的额度？"
+- options:
+  - "auto（推荐）" — EN: Match the provider to the model actually used in the main session (subagents ignored) | ZH: 按主对话实际使用的模型自动切换对应供应商（subagent 不干扰）
+  - "all" — EN: Show every configured provider at once | ZH: 同时显示所有已配置 key 的供应商
+
+### 4.6.4 排布位置
+
+AskUserQuestion（按 `LANG_HUD` 选择语言）:
+- header: "Position" / "位置"
+- question: EN: "Where should the plancost segment sit on the first line?" | ZH: "plancost 段放在状态栏第一行的哪个位置？"
+- options:
+  - "After cost (default)" / "费用之后（默认）" — 不写 projectLineOrder，保持原生顺序（cost 之后）
+  - "After model" / "模型名之后" — 写 `"projectLineOrder": ["model", "plancost"]`
+  - "First" / "行首" — 写 `"projectLineOrder": ["plancost"]`
+  - "Last" / "行尾" — 写 `"projectLineOrder": ["model", "project", "advisor", "sessionName", "version", "extra", "duration", "cost", "speed", "auth", "plancost"]`
+
+### 4.6.5 写入 config.json
+
+把收集到的值合并进 `~/.claude/plugins/claude-hud/config.json`（与已有键合并，保留其它配置；文件不存在则创建）：
+
+```json
+{
+  "plancost": {
+    "enabled": true,
+    "displayMode": "auto",
+    "providers": {
+      "kimi": { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek": { "apiKey": "sk-...", "models": ["deepseek"] },
+      "glm": { "apiKey": "id.secret", "models": ["glm", "chatglm"] }
+    }
+  }
+}
+```
+
+只写用户实际启用的 provider；未启用的不要写入。位置选择对应写入 `projectLineOrder`（见 4.6.4）。写入后提醒（双语按 `LANG_HUD`）：EN: "Keys are stored in plain text — do not share config.json." | ZH: "key 为明文存储，请勿把 config.json 分享出去。"
+
+---
+
 ## Step 5: Verify & Finish
 
 Settings reload automatically, so the HUD can appear in the same session where setup was run — it renders after the user's next interaction (their answer to the question below counts as one). No restart is needed on current Claude Code versions.
 
-Use AskUserQuestion:
-- Question: "Setup complete! The HUD should appear below your input field. Is it working?"
-- Options: "Yes, it's working" / "No, something's wrong"
+Use AskUserQuestion（按 `LANG_HUD` 选择语言）:
+- Question: EN: "Setup complete! The HUD should appear below your input field. Is it working?" | ZH: "安装完成！HUD 应显示在输入框下方。工作正常吗？"
+- Options: EN: "Yes, it's working" / "No, something's wrong" | ZH: "正常" / "有问题"
 
 **If yes**: Ask the user if they'd like to ⭐ star the claude-hud repository on GitHub to support the project. If they agree and `gh` CLI is available, first check whether their `gh` version supports `gh repo star`. If it does, run `gh repo star jarrodwatts/claude-hud`. Otherwise fall back to `gh api -X PUT /user/starred/jarrodwatts/claude-hud`. Only run the star command if they explicitly say yes.
 

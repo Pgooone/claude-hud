@@ -12,6 +12,7 @@ import { hyperlink, getFileHref, safeHyperlink } from '../../utils/hyperlinks.js
 import { formatModelDisplay } from '../model-display.js';
 import { formatAuthSegment } from '../../auth.js';
 import { formatProjectPath } from '../project-path.js';
+import { formatPlancostLabel } from '../plancost-label.js';
 import { DEFAULT_CONFIG, DEFAULT_PROJECT_LINE_ORDER } from '../../config.js';
 import type { FirstLineSegment } from '../../config.js';
 import { orderFirstLineParts } from '../first-line-order.js';
@@ -150,6 +151,13 @@ export function renderProjectLine(ctx: RenderContext): string | null {
   const costEstimate = renderCostEstimate(ctx);
   if (costEstimate) {
     push(costEstimate, 'cost');
+  }
+
+  if (ctx.plancostData?.length) {
+    const plancostLabel = formatPlancostLabel(ctx.plancostData, t);
+    if (plancostLabel) {
+      push(label(plancostLabel, colors), 'plancost');
+    }
   }
 
   if (display?.showSpeed) {

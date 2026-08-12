@@ -4,6 +4,18 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- `plancost` first-line segment showing third-party coding-plan usage or
+  account balance (Kimi / DeepSeek / Zhipu GLM), fetched directly from the
+  provider APIs with a 5-minute per-provider disk cache and stale-cache
+  fallback. Configured via the top-level `plancost` block; `displayMode`
+  `auto` matches the provider to the actually served model, `all` shows every
+  configured provider (#PR).
+- `/claude-hud:setup` and `/claude-hud:configure` wizard questions now support
+  Simplified Chinese alongside English, driven by the HUD `language` config.
+  The setup wizard detects an Anthropic official OAuth login and asks whether
+  third-party plancost should still be enabled (#PR).
+
 ## [0.7.1] - 2026-08-11
 
 ### Fixed
