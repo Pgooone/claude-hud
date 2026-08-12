@@ -242,11 +242,23 @@ function cachePathFor(cacheDir: string, provider: string): string {
   return path.join(cacheDir, `${provider}.json`);
 }
 
+/** JSON round-trips Date to an ISO string; restore it on cache read. */
+function reviveQuotaData(data: QuotaData): QuotaData {
+  if (!data.windows) return data;
+  return {
+    ...data,
+    windows: data.windows.map(w => ({
+      ...w,
+      resetAt: typeof w.resetAt === 'string' ? new Date(w.resetAt) : w.resetAt,
+    })),
+  };
+}
+
 function readCache(cacheDir: string, provider: string, keyHash: string): CacheRead | null {
   try {
     const entry = JSON.parse(fs.readFileSync(cachePathFor(cacheDir, provider), 'utf8')) as CacheEntry;
     if (entry.keyHash !== keyHash || !entry.data) return null;
-    return { data: entry.data, updatedAt: entry.updatedAt };
+    return { data: reviveQuotaData(entry.data), updatedAt: entry.updatedAt };
   } catch {
     return null;
   }

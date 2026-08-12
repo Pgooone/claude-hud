@@ -224,6 +224,23 @@ test('collectQuota serves fresh cache without network', async () => {
   }
 });
 
+test('collectQuota cache roundtrip restores Date resetAt', async () => {
+  const dir = await withTempDir();
+  try {
+    const deps = { fetchImpl: async () => okJson(KIMI_FIXTURE), now: () => 1000000, cacheDir: () => dir };
+    const cfg = makeQuotaConfig();
+    await collectQuota(cfg, { model: { display_name: 'k3[1M]' } }, {}, deps);
+    // Second call hits the cache written by the first; resetAt must be a Date
+    // again after the JSON round-trip, otherwise rendering crashes.
+    const second = await collectQuota(cfg, { model: { display_name: 'k3[1M]' } }, {}, { ...deps, now: () => 1000000 + 60_000 });
+    assert.equal(second.length, 1);
+    assert.ok(second[0].windows[0].resetAt instanceof Date);
+    assert.ok(second[0].windows[1].resetAt instanceof Date);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test('collectQuota refetches when cache is stale', async () => {
   const dir = await withTempDir();
   try {
