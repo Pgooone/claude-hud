@@ -14,6 +14,10 @@ const debug = createDebug('transcript');
 interface TranscriptLine {
   timestamp?: string;
   type?: string;
+  // Harness flag for sidechain (subagent) conversation records. Currently
+  // always false on the main transcript, but filtering on it is a cheap
+  // defense if a future Claude Code version writes subagent turns inline.
+  isSidechain?: boolean;
   subtype?: string;
   operation?: string;
   content?: string;
@@ -478,7 +482,9 @@ export async function parseTranscript(transcriptPath: string): Promise<Transcrip
         // Capture the actual model from the assistant message's `model` field.
         // This reflects what the API actually served, which may differ from the
         // model Claude Code thinks it's using (e.g. proxy redirect via cc-switch).
-        if (entry.type === 'assistant') {
+        // isSidechain guard keeps subagent turns (if a future version writes
+        // them inline) from overriding the main-session model.
+        if (entry.type === 'assistant' && entry.isSidechain !== true) {
           const transcriptModel = sanitizeTranscriptModel(entry.message?.model);
           if (transcriptModel) {
             result.lastAssistantModel = transcriptModel;

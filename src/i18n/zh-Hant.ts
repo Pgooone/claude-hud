@@ -5,6 +5,7 @@ export const zhHant: Messages = {
   "label.context": "上下文",
   "label.usage": "用量",
   "label.weekly": "本週",
+  "label.quotaWeek": "週",
   "label.approxRam": "記憶體",
   "label.promptCache": "快取",
   "label.rules": "規則",

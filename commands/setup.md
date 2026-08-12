@@ -659,6 +659,7 @@ Use AskUserQuestion:
   - "Session info" — Shows session duration and config counts (CLAUDE.md, rules, MCPs)
   - "Session name" — Shows session slug or custom title from /rename
   - "Custom line" — Display a custom phrase in the HUD
+  - "Quota 额度显示" — 国内模型供应商额度/余额（Kimi/DeepSeek/GLM 套餐或余额显示，需填 API key）
 
 **If user selects any options**, write `plugins/claude-hud/config.json` inside the Claude config directory (`${CLAUDE_CONFIG_DIR:-$HOME/.claude}` on bash, `$env:CLAUDE_CONFIG_DIR` or `Join-Path $HOME ".claude"` on PowerShell). Create directories if needed:
 
@@ -669,6 +670,7 @@ Use AskUserQuestion:
 | Session info | `display.showDuration: true, display.showConfigCounts: true` |
 | Session name | `display.showSessionName: true` |
 | Custom line | `display.customLine: "<user's text>"` — ask user for the text (max 80 chars) |
+| Quota 额度显示 | `quota.enabled: true` 及 `quota.displayMode`、`quota.providers`、`projectLineOrder`（见 Step 4.6 向导，未选中则**不写任何 quota 键**） |
 
 Merge with existing config if the file already exists. Only write keys the user selected — don't write `false` for unselected items (defaults handle that).
 
@@ -697,6 +699,72 @@ Ask with AskUserQuestion:
 `refreshInterval` lives in `settings.json`, which Claude Code reloads automatically — ticking should start after the user's next interaction. If countdowns don't tick in the current session, tell the user it will take effect after a Claude Code restart; do not treat a non-ticking timer as a setup failure in Step 5.
 
 Each refresh re-runs the full HUD command (runtime startup, transcript parse, git status), so 5 seconds is the recommended default; only suggest 1 second when the user wants visibly smooth countdowns.
+
+---
+
+## Step 4.6: Quota 额度显示（fork 专属）
+
+**仅当用户在上一步勾选了 "Quota 额度显示" 时执行本节**；未勾选则跳过，不写任何 `quota` 键。
+
+**安全红线（全程遵守）**：API key 只能通过文件写入 API（Write/Edit 工具 + JSON 序列化）写入 `~/.claude/plugins/claude-hud/config.json`（Windows 上为 `%USERPROFILE%\.claude\plugins\claude-hud\config.json`）。**严禁**把 key 放进 shell 命令行参数、echo 输出、settings.json 或任何命令字符串（防进程列表泄露）。写入后提醒用户 key 为明文存储。
+
+### 4.6.1 逐家询问启用并收集 key
+
+对 **Kimi → DeepSeek → 智谱 GLM** 依次询问（每家独立，用 AskUserQuestion）：
+
+- 问题："启用 {provider} 额度显示？（{key 说明}）"
+- 选项："填写 key 并启用" / "跳过"
+  - Kimi：Kimi For Coding key，形如 `sk-kimi-...`，在 https://www.kimi.com/code/console 创建
+  - DeepSeek：形如 `sk-...`，在 https://platform.deepseek.com/api_keys 创建
+  - 智谱 GLM：形如 `{id}.{secret}`（不含 `sk-` 前缀），在 https://open.bigmodel.cn 创建
+- 用户选择 "填写 key 并启用" 后，用 AskUserQuestion 收集 key 文本（用户通过 Other 输入）
+
+### 4.6.2 确认模型前缀（可跳过用默认）
+
+每家启用后，确认 `models` 前缀（AskUserQuestion，可跳过用默认）：
+- 默认建议：Kimi `["k3", "kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm", "chatglm"]`（按模型名前缀匹配，小写不敏感）
+- 用户可 Other 输入自定义前缀（逗号分隔）
+- 说明：模型名以该前缀开头时视为该供应商（如 `k3[1M]` → Kimi、`deepseek-v4-flash[1M]` → DeepSeek）
+
+### 4.6.3 显示模式
+
+AskUserQuestion:
+- header: "Quota 显示模式"
+- question: "额度段如何选择显示哪些供应商？"
+- options:
+  - "auto（推荐）" — 按当前主对话实际使用的模型自动切换对应供应商（subagent 不干扰）
+  - "all" — 同时显示所有已配置 key 的供应商
+
+### 4.6.4 排布位置
+
+AskUserQuestion:
+- header: "Quota 位置"
+- question: "额度段放在状态栏第一行的哪个位置？"
+- options:
+  - "费用之后（默认）" — 不写 projectLineOrder，保持原生顺序（cost 之后）
+  - "模型名之后" — 写 `"projectLineOrder": ["model", "quota"]`
+  - "行首" — 写 `"projectLineOrder": ["quota"]`
+  - "行尾" — 写 `"projectLineOrder": ["model", "project", "advisor", "sessionName", "version", "extra", "duration", "cost", "speed", "auth", "quota"]`
+
+### 4.6.5 写入 config.json
+
+把收集到的值合并进 `~/.claude/plugins/claude-hud/config.json`（与已有键合并，保留其它配置；文件不存在则创建）：
+
+```json
+{
+  "quota": {
+    "enabled": true,
+    "displayMode": "auto",
+    "providers": {
+      "kimi": { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek": { "apiKey": "sk-...", "models": ["deepseek"] },
+      "glm": { "apiKey": "id.secret", "models": ["glm", "chatglm"] }
+    }
+  }
+}
+```
+
+只写用户实际启用的 provider；未启用的不要写入。位置选择对应写入 `projectLineOrder`（见 4.6.4）。写入后提醒：**key 为明文存储，请勿把 config.json 分享出去**。
 
 ---
 

@@ -105,6 +105,7 @@ Save as `language: "en"`, `language: "zh-Hans"`, or `language: "zh-Hant"`.
   - "Claude Code version" - the running CC version
   - "Compaction count" - Compactions: 2 after /compact or auto-compaction
   - "Advisor model" - Advisor: Opus 4.7 (when /advisor is configured)
+  - "Quota 额度显示" - Kimi/DeepSeek/GLM 套餐或余额显示（`quota.enabled: false` → 关闭）
 
 ### Q5: Turn On (based on chosen preset)
 - header: "Turn On"
@@ -125,6 +126,16 @@ If preset has all items OFF (Minimal), Q4 shows "Nothing to disable - Minimal pr
   - "Enter custom text" - Ask user for their phrase via AskUserQuestion (free text input)
 
 If user chooses "Enter custom text", use AskUserQuestion to get their text. Save as `display.customLine` in config.
+
+### Q7: Quota 额度显示 (fork 专属)
+- header: "Quota"
+- question: "Configure the quota segment (Kimi/DeepSeek/GLM usage or balance)?"
+- multiSelect: false
+- options:
+  - "跳过" - Leave quota disabled (do not write quota keys)
+  - "启用并配置" - Run the quota setup wizard (see "Quota 设置向导" section below)
+
+**If user chose "启用并配置"**: run the wizard below; write `quota.enabled: true` and the collected settings into `~/.claude/plugins/claude-hud/config.json`.
 
 ---
 
@@ -158,6 +169,7 @@ If user chooses "Enter custom text", use AskUserQuestion to get their text. Save
   - "Usage bar style" - ██░░ 25% visual bar (only if usageBarEnabled is true)
   - "Usage reset label" - show or hide the `resets in` prefix
   - "Compact usage" - 5h: 25% (1h 30m) shorter format (only if usageCompact is false)
+  - "Quota 额度显示" - Kimi/DeepSeek/GLM 套餐或余额显示（`quota.enabled: false` → 关闭）
 
 If more than 4 items ON, show Activity items (Tools, Agents, Todos, Project, Git) first.
 Info items (Counts, Tokens, Usage, Speed, Duration) can be turned off via "Reset to Minimal" in Q4.
@@ -190,6 +202,7 @@ Info items (Counts, Tokens, Usage, Speed, Duration) can be turned off via "Reset
   - "Claude Code version" - the running CC version
   - "Compaction count" - Compactions: 2 after /compact or auto-compaction
   - "Advisor model" - Advisor: Opus 4.7 (when /advisor is configured)
+  - "Quota 额度显示" - Kimi/DeepSeek/GLM 套餐或余额显示（需填 API key，见 Q7）
 
 ### Q3: Git Style (only if Git is currently enabled)
 - header: "Git Style"
@@ -240,6 +253,36 @@ If user chooses "繁體中文", save `language: "zh-Hant"`.
 
 If user chooses "Enter custom text", use AskUserQuestion to get their text. Save as `display.customLine` in config.
 If user chooses "Remove", set `display.customLine` to `""` in config.
+
+### Q7: Quota 额度显示 (fork 专属)
+- header: "Quota"
+- question: "Update quota settings? (currently: {enabled ? 'enabled (' + displayMode + ')' : 'disabled'})"
+- multiSelect: false
+- options:
+  - "Keep current" - No change
+  - "编辑 provider" - Add/update/remove provider keys and model prefixes (run the wizard below)
+  - "切换显示模式" - Toggle between auto (按模型) and all (全部显示) — ask which with AskUserQuestion
+  - "改位置" - Re-run the position question (see wizard step 4 below)
+  - "停用 quota" - Set `quota.enabled: false` (only when currently enabled)
+  - "启用并配置" - Enable and run the wizard (only when currently disabled)
+
+---
+
+## Quota 设置向导（Q7 共用）
+
+**安全红线（全程遵守）**：API key 只能通过文件写入 API（Write/Edit 工具 + JSON 序列化）写入 `~/.claude/plugins/claude-hud/config.json`。**严禁**把 key 放进 shell 命令行参数、echo 输出、settings.json 或任何命令字符串（防进程列表泄露）。写入后提醒用户 key 为明文存储。
+
+1. **逐家询问**（Kimi → DeepSeek → 智谱 GLM，AskUserQuestion，每家独立）：
+   - "启用 {provider} 额度显示？"（Kimi key 形如 `sk-kimi-...`；DeepSeek 形如 `sk-...`；GLM 形如 `{id}.{secret}` 不含 `sk-` 前缀）
+   - "填写 key 并启用"（选 Other 输入 key）/ "跳过"（保留现有 key 时用 "Keep current" 选项）
+2. **模型前缀**：默认建议 Kimi `["k3","kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm","chatglm"]`，用户可 Other 输入自定义（逗号分隔）
+3. **显示模式**："auto（推荐）按当前主对话模型自动切换" / "all 同时显示全部"
+4. **排布位置**："费用之后（默认，不写 projectLineOrder）" / "模型名之后（`["model","quota"]`）" / "行首（`["quota"]`）" / "行尾（完整 11 项顺序）"
+5. **写入 config.json**：`quota` 块与现有键合并写入（只写用户选中的键），格式：
+   ```json
+   { "quota": { "enabled": true, "displayMode": "auto",
+     "providers": { "kimi": { "apiKey": "...", "models": ["k3","kimi"] } } } }
+   ```
 
 ---
 

@@ -4,6 +4,30 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-08-12
+
+### Added (fork: quota segment)
+- New `quota` first-line segment showing domestic model-provider usage:
+  Kimi For Coding (5h + weekly windows), DeepSeek (account balance), and
+  Zhipu GLM (5h + weekly windows). Configured via the top-level `quota`
+  block in `~/.claude/plugins/claude-hud/config.json` (apiKey + model
+  prefix per provider).
+- `quota.displayMode`: `auto` (match the provider whose model prefix matches
+  the actual served model from the transcript) or `all` (show every provider
+  with a configured key).
+- 5-minute disk cache keyed by a hash of the apiKey (swapping keys
+  invalidates stale data), 2s request timeout, stale-cache fallback on
+  network failure; the segment silently disappears when no data is available.
+- emoji health markers (🟢 <60% / 🟡 60-84% / 🔴 ≥85%) since claude-hud
+  strips ANSI from external data; DeepSeek balance renders as `💰 DS ¥xx.xx`.
+- `/claude-hud:setup` Step 4 and `/claude-hud:configure` Q7 gain a Quota
+  wizard: enable providers, collect API keys, pick display mode, and place
+  the segment via `projectLineOrder`.
+
+### Fixed
+- Transcript `lastAssistantModel` now skips sidechain (subagent) records when
+  a future Claude Code version writes them inline.
+
 ## [0.7.1] - 2026-08-11
 
 ### Fixed

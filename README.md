@@ -308,9 +308,86 @@ Set `display.showResetLabel` to `false` if you want shorter usage countdowns suc
 
 Set `display.usageCompact` to `true` if you want the shorter usage-only form, for example `5h: 25% (1h 30m)`. Compact usage takes precedence over `display.usageBarEnabled`.
 
+### Quota (domestic model providers) — fork addition
+
+This fork adds a `quota` first-line segment that shows **third-party domestic
+model-provider usage or balance**, queried directly from the provider APIs
+(Kimi For Coding, DeepSeek, Zhipu GLM). It is **disabled by default** — you
+must opt in and fill in API keys.
+
+```
+🟡 Kimi 5h 15% (03:44) · week 69% (08/13)      ← Kimi coding plan (5h + weekly)
+💰 DS ¥40.96                                   ← DeepSeek account balance
+```
+
+Health markers: 🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85% (based on the worst window).
+DeepSeek shows balance only. Claude-hud strips ANSI from external data, so
+the emoji carry the color signal.
+
+#### Configuration
+
+```jsonc
+// ~/.claude/plugins/claude-hud/config.json
+{
+  "quota": {
+    "enabled": true,
+    "displayMode": "auto",        // "auto" | "all"
+    "providers": {
+      "kimi":     { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek": { "apiKey": "sk-...",      "models": ["deepseek"] },
+      "glm":      { "apiKey": "id.secret",   "models": ["glm", "chatglm"],
+                    "endpoint": "https://open.bigmodel.cn" }   // optional override
+    }
+  }
+}
+```
+
+- **`enabled`**: master switch. `false` means zero network calls.
+- **`displayMode`**:
+  - `auto` (default): show only the provider whose `models` prefix matches
+    the **actual served model** (transcript `message.model`, stdin model as
+    fallback before the first assistant message). Subagent turns never
+    override the main-session model.
+  - `all`: show every provider that has a non-empty `apiKey`, in config
+    key order.
+- **`providers`**: keys are fixed (`kimi` / `deepseek` / `glm`); unknown keys
+  are dropped. `models` are case-insensitive name prefixes (e.g. `k3` matches
+  `k3[1M]` and `k3-256`). `endpoint` is only needed for the GLM international
+  site (`https://api.z.ai`).
+
+Where each key comes from:
+- **Kimi For Coding**: `sk-kimi-...`, create at https://www.kimi.com/code/console
+- **DeepSeek**: `sk-...`, create at https://platform.deepseek.com/api_keys
+- **Zhipu GLM**: `{id}.{secret}` (no `sk-` prefix), create at
+  https://open.bigmodel.cn
+
+#### Position on the line
+
+The segment renders after the cost segment by default. Reorder it with
+`projectLineOrder`, e.g. right after the model badge:
+
+```jsonc
+{ "projectLineOrder": ["model", "quota"] }
+```
+
+#### How it works
+
+- Queries: Kimi `GET api.kimi.com/coding/v1/usages` (Bearer); DeepSeek
+  `GET api.deepseek.com/user/balance` (Bearer); GLM
+  `GET {endpoint}/api/monitor/usage/quota/limit` (**bare key, no Bearer** —
+  a Bearer prefix fails GLM auth).
+- Caching: one file per provider under
+  `~/.claude/plugins/claude-hud/quota-cache/`, 5-minute TTL, keyed by a hash
+  of the apiKey — swapping keys invalidates old data immediately.
+- Degradation: fresh cache → request (2s timeout) → stale cache for the same
+  key → segment hidden. Failures never break the HUD.
+- The `/claude-hud:setup` Step 4 and `/claude-hud:configure` Q7 wizards guide
+  through enabling providers, entering keys, display mode, and placement.
+  Keys are written to `config.json` as plain text — do not share that file.
+
 ### Security Notes
 
-ClaudeHUD is local-only by design. It does not make network requests, scrape credentials, or call undocumented Claude APIs. It reads the statusline JSON from stdin, the current session transcript path supplied by Claude Code, selected Claude configuration files under `~/.claude`, and git metadata for the current workspace.
+ClaudeHUD is local-only by design. It does not scrape credentials or call undocumented Claude APIs. It reads the statusline JSON from stdin, the current session transcript path supplied by Claude Code, selected Claude configuration files under `~/.claude`, and git metadata for the current workspace. The only network requests are the optional `quota` segment's direct calls to the provider usage/balance APIs you configured (Kimi / DeepSeek / GLM) — disabled by default and never contacting Anthropic.
 
 HUD cache files are written under `~/.claude/plugins/claude-hud` with private permissions on POSIX filesystems. The cache stores derived display metadata such as context percentages, token counters, activity names, and the resolved Claude Code version.
 

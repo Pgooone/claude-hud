@@ -1,6 +1,7 @@
 import type { HudConfig } from './config.js';
 import type { GitStatus } from './git.js';
 import type { AuthInfo } from './auth.js';
+import type { QuotaData } from './quota.js';
 export interface StdinData {
     transcript_path?: string;
     cwd?: string;
@@ -174,5 +175,6 @@ export interface RenderContext {
     effortLevel?: string;
     effortSymbol?: string;
     authInfo?: AuthInfo | null;
+    quotaData?: QuotaData[];
 }
 //# sourceMappingURL=types.d.ts.map

@@ -6,6 +6,7 @@ import { getGitStatus } from "./git.js";
 import { getJjStatus, isJjRepo } from "./jj.js";
 import { loadConfig } from "./config.js";
 import { parseExtraCmdArg, runExtraCmd } from "./extra-cmd.js";
+import { collectQuota } from "./quota.js";
 import { getClaudeCodeVersion } from "./version.js";
 import { getMemoryUsage } from "./memory.js";
 import { readAuthInfo } from "./auth.js";
@@ -66,6 +67,7 @@ export async function main(overrides = {}) {
         loadConfig,
         parseExtraCmdArg,
         runExtraCmd,
+        collectQuota,
         getClaudeCodeVersion,
         getMemoryUsage,
         readAuthInfo,
@@ -138,6 +140,9 @@ export async function main(overrides = {}) {
         }
         const extraCmd = deps.parseExtraCmdArg();
         const extraLabel = extraCmd ? await deps.runExtraCmd(extraCmd) : null;
+        const quotaData = config.quota.enabled
+            ? await deps.collectQuota(config, stdin, transcript)
+            : [];
         const sessionDuration = formatSessionDuration(transcript.sessionStart, deps.now);
         const claudeCodeVersion = config.display.showClaudeCodeVersion
             ? await deps.getClaudeCodeVersion()
@@ -169,6 +174,7 @@ export async function main(overrides = {}) {
             effortLevel: effortInfo?.level,
             effortSymbol: effortInfo?.symbol,
             authInfo,
+            quotaData,
         };
         deps.render(ctx);
     }

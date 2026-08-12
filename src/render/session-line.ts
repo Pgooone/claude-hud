@@ -13,6 +13,7 @@ import type { TimeFormatMode, UsageValueMode } from '../config.js';
 import { formatResetTime, type WallClockOptions } from './format-reset-time.js';
 import { formatTokens, formatContextValue } from '../utils/format.js';
 import { formatAuthSegment } from '../auth.js';
+import { formatQuotaLabel } from './quota-label.js';
 import { createDebug } from '../debug.js';
 import { formatModelDisplay } from './model-display.js';
 import { formatSessionTokenSummary } from './lines/session-tokens.js';
@@ -365,6 +366,13 @@ export function renderSessionLine(ctx: RenderContext): string {
   const costEstimate = renderCostEstimate(ctx);
   if (costEstimate) {
     push(costEstimate, 'cost');
+  }
+
+  if (ctx.quotaData?.length) {
+    const quotaLabel = formatQuotaLabel(ctx.quotaData, t);
+    if (quotaLabel) {
+      push(label(quotaLabel, colors), 'quota');
+    }
   }
 
   if (display?.showSpeed) {

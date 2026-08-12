@@ -39,8 +39,30 @@ export type HudElement = 'project' | 'addedDirs' | 'context' | 'usage' | 'prompt
  *   speed:       output speed
  *   auth:        auth method / account
  */
-export type FirstLineSegment = 'model' | 'project' | 'advisor' | 'sessionName' | 'version' | 'extra' | 'duration' | 'cost' | 'speed' | 'auth';
+export type FirstLineSegment = 'model' | 'project' | 'advisor' | 'sessionName' | 'version' | 'extra' | 'duration' | 'cost' | 'speed' | 'auth' | 'quota';
 export type AddedDirsLayout = 'inline' | 'line';
+/**
+ * Quota segment — shows third-party model-provider usage (Kimi / DeepSeek /
+ * GLM coding-plan quota or account balance). Configured manually with the
+ * provider API keys; see README for where each key comes from.
+ *
+ *   displayMode "auto": show only the provider whose `models` prefix matches
+ *                       the current main-session model (transcript-first).
+ *   displayMode "all":  show every provider that has a non-empty apiKey.
+ */
+export type QuotaDisplayMode = 'auto' | 'all';
+export interface QuotaProviderConfig {
+    apiKey: string;
+    /** Model-name prefixes matched case-insensitively (e.g. "k3" matches "k3[1M]"). */
+    models: string[];
+    /** Optional API base override (e.g. GLM international: https://api.z.ai). */
+    endpoint?: string;
+}
+export interface QuotaConfig {
+    enabled: boolean;
+    displayMode: QuotaDisplayMode;
+    providers: Record<string, QuotaProviderConfig>;
+}
 export type HudColorName = 'dim' | 'red' | 'green' | 'yellow' | 'magenta' | 'cyan' | 'brightBlue' | 'brightMagenta';
 /** A color value: named preset, 256-color index (0-255), or hex string (#rrggbb). */
 export type HudColorValue = HudColorName | number | string;
@@ -85,6 +107,7 @@ export interface HudConfig {
         showDirty: boolean;
         showConflicts: boolean;
     };
+    quota: QuotaConfig;
     display: {
         showModel: boolean;
         showProject: boolean;

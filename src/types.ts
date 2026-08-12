@@ -1,6 +1,7 @@
 import type { HudConfig } from './config.js';
 import type { GitStatus } from './git.js';
 import type { AuthInfo } from './auth.js';
+import type { QuotaData } from './quota.js';
 
 export interface StdinData {
   transcript_path?: string;
@@ -205,4 +206,7 @@ export interface RenderContext {
   // Auth method + account for the current login (see auth.ts). Only populated
   // when display.showAuth or display.showAuthUser is enabled.
   authInfo?: AuthInfo | null;
+  // Third-party provider quota/balance data (see quota.ts). Populated when
+  // quota.enabled is true; empty array otherwise.
+  quotaData?: QuotaData[];
 }
