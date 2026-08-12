@@ -9,7 +9,30 @@
 
 > 🌐 [English README](README.md) | 中文文档
 
-## 安装
+## Fork 安装（plancost / 双语向导）
+
+> 本 fork（Pgooone/claude-hud）新增了 **plancost** 段（Kimi / DeepSeek /
+> GLM 套餐额度或余额显示）、中英双语安装向导，以及 Anthropic 官方 OAuth
+> 登录检测。该功能也已作为 [PR #708](https://github.com/jarrodwatts/claude-hud/pull/708)
+> 提交上游。要在任意机器上直接安装本 fork：
+
+在 Claude Code 实例中：
+
+```
+/plugin marketplace add Pgooone/claude-hud
+/plugin install claude-hud@claude-hud
+/reload-plugins
+```
+
+然后通过 `/claude-hud:setup` 配置状态栏（Step 4 提供 "Plancost 额度显示" 向导）。
+也可以在会话外使用 CLI：
+
+```bash
+claude plugin marketplace add Pgooone/claude-hud
+claude plugin install claude-hud@claude-hud
+```
+
+## 安装（上游）
 
 在 Claude Code 实例中，运行以下命令：
 
@@ -319,6 +342,79 @@ ClaudeHUD 优先使用官方 statusline stdin 负载中的使用率数据。如�
   }
 }
 ```
+
+### Plancost（第三方模型供应商）— fork 新增
+
+`plancost` 第一行段显示**第三方国产模型供应商的套餐额度或余额**，直接调用
+各家供应商 API 查询（Kimi For Coding、DeepSeek、智谱 GLM）。**默认关闭**——
+需要手动启用并填写 API key。它与官方 `rate_limits` 显示（要求 Anthropic
+订阅登录，API key / 中转用户拿不到）及外部 usage 快照路径互为补充：
+plancost 自行抓取供应商数据，无需维护 sidecar 文件。
+
+```
+🟡 Kimi 5h 15% (03:44) · week 69% (08/13)      ← Kimi coding plan（5h + 周额度）
+💰 DS ¥40.96                                   ← DeepSeek 账户余额
+```
+
+健康度标记：🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85%（取最差窗口）。DeepSeek 只显示
+余额。HUD 会剥离外部数据的 ANSI 色码，因此用 emoji 承担颜色信号。
+
+#### 配置
+
+```jsonc
+// ~/.claude/plugins/claude-hud/config.json
+{
+  "plancost": {
+    "enabled": true,
+    "displayMode": "auto",        // "auto" | "all"
+    "providers": {
+      "kimi":     { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek": { "apiKey": "sk-...",      "models": ["deepseek"] },
+      "glm":      { "apiKey": "id.secret",   "models": ["glm", "chatglm"],
+                    "endpoint": "https://open.bigmodel.cn" }   // 可选覆盖
+    }
+  }
+}
+```
+
+- **`enabled`**：总开关。`false` 时零网络请求。
+- **`displayMode`**：
+  - `auto`（默认）：只显示 `models` 前缀匹配**实际服务模型**（transcript
+    `message.model`，首个 assistant 消息前回退到 stdin 模型）的供应商。
+    subagent 的回合不会覆盖主会话模型。
+  - `all`：显示所有配置了非空 `apiKey` 的供应商，按配置键顺序。
+- **`providers`**：键固定为 `kimi` / `deepseek` / `glm`，未知键会被丢弃。
+  `models` 是不区分大小写的模型名前缀（如 `k3` 匹配 `k3[1M]` 和 `k3-256`）。
+  `endpoint` 仅在 GLM 国际站（`https://api.z.ai`）时需要。
+
+各 key 的获取位置：
+- **Kimi For Coding**：`sk-kimi-...`，在 https://www.kimi.com/code/console 创建
+- **DeepSeek**：`sk-...`，在 https://platform.deepseek.com/api_keys 创建
+- **智谱 GLM**：`{id}.{secret}`（不含 `sk-` 前缀），在 https://open.bigmodel.cn 创建
+
+#### 位置排布
+
+该段默认在费用（cost）段之后渲染。可通过 `projectLineOrder` 重排，例如
+紧跟模型徽章之后：
+
+```jsonc
+{ "projectLineOrder": ["model", "plancost"] }
+```
+
+#### 工作原理
+
+- 查询：Kimi `GET api.kimi.com/coding/v1/usages`（Bearer）；DeepSeek
+  `GET api.deepseek.com/user/balance`（Bearer）；GLM
+  `GET {endpoint}/api/monitor/usage/quota/limit`（**裸 key，不加 Bearer**——
+  加了 Bearer 会导致 GLM 认证失败）。
+- 缓存：`~/.claude/plugins/claude-hud/plancost-cache/` 下每个供应商一个文件，
+  5 分钟 TTL，以 apiKey 的哈希作为键——更换 key 会立即让旧缓存失效。
+- 降级：新鲜缓存 → 请求（2 秒超时）→ 同 key 的过期缓存 → 隐藏该段。
+  任何失败都不会影响 HUD 其余部分。
+- `/claude-hud:setup` Step 4 和 `/claude-hud:configure` Q7 向导会引导启用
+  供应商、填写 key、选择显示模式和位置。检测到 Anthropic 官方 OAuth 登录时，
+  向导会询问是否仍要启用第三方 plancost（官方 `rate_limits` 额度已显示）。
+  key 以明文写入 `config.json`——请勿分享该文件。
 
 ### 配置示例
 
