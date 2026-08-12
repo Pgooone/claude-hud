@@ -9,7 +9,31 @@ A Claude Code plugin that shows what's happening — context usage, active tools
 
 > 🌐 English | [中文文档](README.zh.md)
 
-## Install
+## Fork install (plancost / bilingual wizard)
+
+> This fork (Pgooone/claude-hud) adds the **plancost** segment (Kimi / DeepSeek /
+> GLM plan usage or balance), a bilingual (EN / 简体中文) setup wizard, and
+> official-OAuth detection. The feature is also proposed upstream as
+> [PR #708](https://github.com/jarrodwatts/claude-hud/pull/708). To install this
+> fork directly on any machine:
+
+Inside a Claude Code instance:
+
+```
+/plugin marketplace add Pgooone/claude-hud
+/plugin install claude-hud@claude-hud
+/reload-plugins
+```
+
+Then configure the statusline with `/claude-hud:setup` (Step 4 offers the
+"Plancost 额度显示" wizard). Or outside a session:
+
+```bash
+claude plugin marketplace add Pgooone/claude-hud
+claude plugin install claude-hud@claude-hud
+```
+
+## Install (upstream)
 
 Inside a Claude Code instance, run the following commands:
 
