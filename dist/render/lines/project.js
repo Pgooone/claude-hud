@@ -11,6 +11,7 @@ import { getFileHref, safeHyperlink } from '../../utils/hyperlinks.js';
 import { formatModelDisplay } from '../model-display.js';
 import { formatAuthSegment } from '../../auth.js';
 import { formatProjectPath } from '../project-path.js';
+import { formatPlancostLabel } from '../plancost-label.js';
 import { DEFAULT_CONFIG, DEFAULT_PROJECT_LINE_ORDER } from '../../config.js';
 import { orderFirstLineParts } from '../first-line-order.js';
 import { getVcsDisplayState } from '../vcs-status.js';
@@ -133,6 +134,12 @@ export function renderProjectLine(ctx) {
     const costEstimate = renderCostEstimate(ctx);
     if (costEstimate) {
         push(costEstimate, 'cost');
+    }
+    if (ctx.plancostData?.length) {
+        const plancostLabel = formatPlancostLabel(ctx.plancostData, t);
+        if (plancostLabel) {
+            push(label(plancostLabel, colors), 'plancost');
+        }
     }
     if (display?.showSpeed) {
         const speed = getOutputSpeed(ctx.stdin);

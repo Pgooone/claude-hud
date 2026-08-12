@@ -6,6 +6,7 @@ import { getGitStatus } from "./git.js";
 import { getJjStatus, isJjRepo } from "./jj.js";
 import { loadConfig } from "./config.js";
 import { parseExtraCmdArg, runExtraCmd } from "./extra-cmd.js";
+import { collectPlancost } from "./plancost.js";
 import { getClaudeCodeVersion } from "./version.js";
 import { getMemoryUsage } from "./memory.js";
 import { readAuthInfo } from "./auth.js";
@@ -27,6 +28,7 @@ export type MainDeps = {
     loadConfig: typeof loadConfig;
     parseExtraCmdArg: typeof parseExtraCmdArg;
     runExtraCmd: typeof runExtraCmd;
+    collectPlancost: typeof collectPlancost;
     getClaudeCodeVersion: typeof getClaudeCodeVersion;
     getMemoryUsage: typeof getMemoryUsage;
     readAuthInfo: typeof readAuthInfo;

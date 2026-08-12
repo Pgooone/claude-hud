@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { getHudPluginDir } from './claude-config-dir.js';
 import { createDebug } from './debug.js';
+import { sanitizeDisplayText } from './utils/sanitize.js';
 import { MAX_TERMINAL_WIDTH } from './utils/terminal.js';
 const debug = createDebug('config');
 export const DEFAULT_ELEMENT_ORDER = [
@@ -34,6 +35,7 @@ const PROJECT_LINE_SEGMENTS = [
     'cost',
     'speed',
     'auth',
+    'plancost',
 ];
 // An empty order is deliberate: renderers retain their byte-for-byte native
 // order until the user opts in to moving one or more segments.
@@ -62,6 +64,11 @@ export const DEFAULT_CONFIG = {
         enabled: false,
         showDirty: true,
         showConflicts: true,
+    },
+    plancost: {
+        enabled: false,
+        displayMode: 'auto',
+        providers: {},
     },
     display: {
         showModel: true,
@@ -258,6 +265,39 @@ function validateProjectLineOrder(value) {
     }
     return order;
 }
+const KNOWN_PLANCOST_PROVIDERS = new Set(['kimi', 'deepseek', 'glm']);
+function validatePlancostDisplayMode(value) {
+    return value === 'auto' || value === 'all';
+}
+function mergePlancostProviders(raw) {
+    const out = {};
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw))
+        return out;
+    for (const [name, entry] of Object.entries(raw)) {
+        if (!KNOWN_PLANCOST_PROVIDERS.has(name))
+            continue;
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+            continue;
+        const e = entry;
+        const apiKey = typeof e.apiKey === 'string'
+            ? sanitizeDisplayText(e.apiKey).trim().slice(0, 512)
+            : '';
+        if (!apiKey)
+            continue;
+        const models = Array.isArray(e.models)
+            ? e.models
+                .filter((m) => typeof m === 'string')
+                .map(m => sanitizeDisplayText(m).trim().toLowerCase().slice(0, 64))
+                .filter(Boolean)
+                .slice(0, 8)
+            : [];
+        const endpoint = typeof e.endpoint === 'string'
+            ? sanitizeDisplayText(e.endpoint).trim().slice(0, 256)
+            : undefined;
+        out[name] = { apiKey, models, ...(endpoint ? { endpoint } : {}) };
+    }
+    return out;
+}
 function validateRightAlign(value) {
     if (!Array.isArray(value)) {
         return [...DEFAULT_CONFIG.display.rightAlign];
@@ -439,6 +479,15 @@ export function mergeConfig(userConfig) {
         showConflicts: typeof migrated.jjStatus?.showConflicts === 'boolean'
             ? migrated.jjStatus.showConflicts
             : DEFAULT_CONFIG.jjStatus.showConflicts,
+    };
+    const plancost = {
+        enabled: typeof migrated.plancost?.enabled === 'boolean'
+            ? migrated.plancost.enabled
+            : DEFAULT_CONFIG.plancost.enabled,
+        displayMode: validatePlancostDisplayMode(migrated.plancost?.displayMode)
+            ? migrated.plancost.displayMode
+            : DEFAULT_CONFIG.plancost.displayMode,
+        providers: mergePlancostProviders(migrated.plancost?.providers),
     };
     const display = {
         showModel: typeof migrated.display?.showModel === 'boolean'
@@ -639,7 +688,7 @@ export function mergeConfig(userConfig) {
             ? migrated.colors.barEmpty
             : DEFAULT_CONFIG.colors.barEmpty,
     };
-    return { language, lineLayout, showSeparators, pathLevels, maxWidth, forceMaxWidth, elementOrder, projectLineOrder, gitStatus, jjStatus, display, colors };
+    return { language, lineLayout, showSeparators, pathLevels, maxWidth, forceMaxWidth, elementOrder, projectLineOrder, gitStatus, jjStatus, plancost, display, colors };
 }
 export async function loadConfig() {
     const configPath = getConfigPath();

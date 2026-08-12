@@ -4,6 +4,25 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-08-12
+
+### Added (fork: plancost)
+- `plancost` first-line segment showing third-party coding-plan usage or
+  account balance (Kimi / DeepSeek / Zhipu GLM), fetched directly from the
+  provider APIs. Configured via the top-level `plancost` block
+  (`enabled` / `displayMode` auto|all / `providers` with apiKey + model
+  prefixes). Replaces the 0.7.2 `quota` block — rename `quota` to `plancost`
+  in your config.json when upgrading.
+- Bilingual (EN / 简体中文) wizard questions in setup.md and configure.md,
+  driven by the HUD `language` config.
+- Setup wizard detects an Anthropic official OAuth login and asks whether
+  third-party plancost should still be enabled (official `rate_limits` are
+  already shown by the usage segment).
+
+### Fixed
+- Transcript `lastAssistantModel` now skips sidechain (subagent) records when
+  a future Claude Code version writes them inline.
+
 ### Added
 - `plancost` first-line segment showing third-party coding-plan usage or
   account balance (Kimi / DeepSeek / Zhipu GLM), fetched directly from the

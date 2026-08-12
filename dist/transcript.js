@@ -341,7 +341,9 @@ export async function parseTranscript(transcriptPath) {
                 // Capture the actual model from the assistant message's `model` field.
                 // This reflects what the API actually served, which may differ from the
                 // model Claude Code thinks it's using (e.g. proxy redirect via cc-switch).
-                if (entry.type === 'assistant') {
+                // isSidechain guard keeps subagent turns (if a future version writes
+                // them inline) from overriding the main-session model.
+                if (entry.type === 'assistant' && entry.isSidechain !== true) {
                     const transcriptModel = sanitizeTranscriptModel(entry.message?.model);
                     if (transcriptModel) {
                         result.lastAssistantModel = transcriptModel;
