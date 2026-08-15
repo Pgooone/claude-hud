@@ -4,6 +4,8 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.4] - 2026-08-16
+
 ### Added (fork: plancost)
 - Plan level display: coding-plan providers append their plan level to the
   brand — `Kimi(advanced)` (from `user.membership.level`), `GLM(lite)`
