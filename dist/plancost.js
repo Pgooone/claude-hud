@@ -85,7 +85,13 @@ function windowFrom(o, label) {
         return null;
     return { label, percent: clampPercent((used / limit) * 100), resetAt: parseDate(o.resetTime) };
 }
-/** Kimi For Coding: 5h window in limits[0].detail, weekly quota in usage. */
+/** Normalize a plan-level code ("LEVEL_ADVANCED" → "advanced"); '' when absent. */
+function planLevelOf(value) {
+    if (typeof value !== 'string')
+        return '';
+    return sanitizeDisplayText(value.replace(/^LEVEL_/i, '')).trim().toLowerCase().slice(0, 12);
+}
+/** Kimi For Coding: 5h window in limits[0].detail, weekly quota in usage; membership level as plan level. */
 export function parseKimiResponse(raw) {
     if (!raw || typeof raw !== 'object')
         return null;
@@ -105,7 +111,9 @@ export function parseKimiResponse(raw) {
         if (w)
             windows.push(w);
     }
-    return windows.length ? { provider: 'kimi', windows } : null;
+    const membership = d.user?.membership;
+    const level = planLevelOf(membership?.level);
+    return windows.length ? { provider: 'kimi', windows, ...(level ? { level } : {}) } : null;
 }
 /** DeepSeek: account balance. total_balance is a string; currency CNY/USD. */
 export function parseDeepSeekResponse(raw) {
@@ -124,8 +132,9 @@ export function parseDeepSeekResponse(raw) {
     return { provider: 'deepseek', balance: { amount, currency: currency || 'CNY' } };
 }
 /**
- * GLM (Zhipu): TOKENS_LIMIT windows. unit 3 → 5h window, unit 6 → weekly;
- * other units fill the missing slots ordered by next reset time.
+ * GLM (Zhipu): TOKENS_LIMIT / CREDIT_LIMIT windows. unit 3 → 5h window,
+ * unit 6 → weekly; other units fill the missing slots ordered by next reset
+ * time. `data.level` (e.g. "lite") is surfaced as the plan level.
  */
 export function parseGlmResponse(raw) {
     if (!raw || typeof raw !== 'object')
@@ -140,7 +149,8 @@ export function parseGlmResponse(raw) {
         if (!item || typeof item !== 'object')
             continue;
         const l = item;
-        if (String(l.type ?? '').toUpperCase() !== 'TOKENS_LIMIT')
+        const type = String(l.type ?? '').toUpperCase();
+        if (type !== 'TOKENS_LIMIT' && type !== 'CREDIT_LIMIT')
             continue;
         const percent = clampPercent(l.percentage);
         const resetAt = parseDate(l.nextResetTime);
@@ -157,7 +167,8 @@ export function parseGlmResponse(raw) {
     if (!slots.some(s => s.label === 'week') && others.length)
         slots.push({ label: 'week', ...others.shift() });
     slots.sort((a, b) => (a.label === '5h' ? 0 : 1) - (b.label === '5h' ? 0 : 1));
-    return slots.length ? { provider: 'glm', windows: slots } : null;
+    const level = planLevelOf(data && typeof data === 'object' ? data.level : undefined);
+    return slots.length ? { provider: 'glm', windows: slots, ...(level ? { level } : {}) } : null;
 }
 // ---------- fetch ----------
 async function getJson(url, headers, fetchImpl) {

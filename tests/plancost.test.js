@@ -14,6 +14,7 @@ import {
 } from '../dist/plancost.js';
 
 const KIMI_FIXTURE = {
+  user: { membership: { level: 'LEVEL_ADVANCED' } },
   limits: [{ window: { duration: 300, timeUnit: 'TIME_UNIT_MINUTE' }, detail: { limit: '200', used: '30', resetTime: '2026-08-12T03:44:00Z' } }],
   usage: { limit: '2048', used: '1413', resetTime: '2026-08-15T05:44:00Z' },
 };
@@ -121,6 +122,12 @@ test('parseKimiResponse extracts 5h and week windows', () => {
   assert.equal(d.windows[1].percent, 69);
 });
 
+test('parseKimiResponse extracts membership plan level', () => {
+  const d = parseKimiResponse(KIMI_FIXTURE);
+  assert.ok(d);
+  assert.equal(d.level, 'advanced'); // LEVEL_ADVANCED → advanced
+});
+
 test('parseKimiResponse returns null without valid limits', () => {
   assert.equal(parseKimiResponse({ usage: {} }), null);
   assert.equal(parseKimiResponse({ limits: [{ detail: { limit: '0', used: '10' } }] }), null);
@@ -171,6 +178,29 @@ test('parseGlmResponse clamps percentage to 0-100', () => {
   const raw = { data: { limits: [{ type: 'TOKENS_LIMIT', unit: 3, percentage: 250, nextResetTime: 0 }] } };
   const d = parseGlmResponse(raw);
   assert.equal(d.windows[0].percent, 100);
+});
+
+test('parseGlmResponse accepts CREDIT_LIMIT windows (credit-plan keys)', () => {
+  // Credit-plan keys (level: "lite") report CREDIT_LIMIT instead of TOKENS_LIMIT.
+  const raw = {
+    code: 200,
+    data: {
+      limits: [
+        { type: 'CREDIT_LIMIT', unit: 3, percentage: 12, nextResetTime: 1786844859973 },
+        { type: 'CREDIT_LIMIT', unit: 6, percentage: 2, nextResetTime: 1787297621998 },
+      ],
+      level: 'lite',
+    },
+  };
+  const d = parseGlmResponse(raw);
+  assert.ok(d);
+  assert.equal(d.provider, 'glm');
+  assert.equal(d.windows.length, 2);
+  assert.equal(d.windows[0].label, '5h');
+  assert.equal(d.windows[0].percent, 12);
+  assert.equal(d.windows[1].label, 'week');
+  assert.equal(d.windows[1].percent, 2);
+  assert.equal(d.level, 'lite');
 });
 
 // ---------- collectPlancost: caching & degradation ----------

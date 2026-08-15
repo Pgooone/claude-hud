@@ -34,6 +34,8 @@ export interface PlancostWindow {
 
 export interface PlancostData {
   provider: PlancostProviderId;
+  /** Plan level (kimi membership / glm data.level), e.g. "advanced", "lite". */
+  level?: string;
   /** Windows present for coding-plan providers (kimi / glm). */
   windows?: PlancostWindow[];
   /** Balance present for pay-as-you-go providers (deepseek). */
@@ -115,7 +117,13 @@ function windowFrom(o: Record<string, unknown>, label: PlancostWindow['label']):
   return { label, percent: clampPercent((used / limit) * 100), resetAt: parseDate(o.resetTime) };
 }
 
-/** Kimi For Coding: 5h window in limits[0].detail, weekly quota in usage. */
+/** Normalize a plan-level code ("LEVEL_ADVANCED" → "advanced"); '' when absent. */
+function planLevelOf(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return sanitizeDisplayText(value.replace(/^LEVEL_/i, '')).trim().toLowerCase().slice(0, 12);
+}
+
+/** Kimi For Coding: 5h window in limits[0].detail, weekly quota in usage; membership level as plan level. */
 export function parseKimiResponse(raw: unknown): PlancostData | null {
   if (!raw || typeof raw !== 'object') return null;
   const d = raw as Record<string, unknown>;
@@ -132,7 +140,9 @@ export function parseKimiResponse(raw: unknown): PlancostData | null {
     const w = windowFrom(d.usage as Record<string, unknown>, 'week');
     if (w) windows.push(w);
   }
-  return windows.length ? { provider: 'kimi', windows } : null;
+  const membership = (d.user as Record<string, unknown> | undefined)?.membership as Record<string, unknown> | undefined;
+  const level = planLevelOf(membership?.level);
+  return windows.length ? { provider: 'kimi', windows, ...(level ? { level } : {}) } : null;
 }
 
 /** DeepSeek: account balance. total_balance is a string; currency CNY/USD. */
@@ -150,8 +160,9 @@ export function parseDeepSeekResponse(raw: unknown): PlancostData | null {
 }
 
 /**
- * GLM (Zhipu): TOKENS_LIMIT windows. unit 3 → 5h window, unit 6 → weekly;
- * other units fill the missing slots ordered by next reset time.
+ * GLM (Zhipu): TOKENS_LIMIT / CREDIT_LIMIT windows. unit 3 → 5h window,
+ * unit 6 → weekly; other units fill the missing slots ordered by next reset
+ * time. `data.level` (e.g. "lite") is surfaced as the plan level.
  */
 export function parseGlmResponse(raw: unknown): PlancostData | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -164,7 +175,8 @@ export function parseGlmResponse(raw: unknown): PlancostData | null {
   for (const item of limits) {
     if (!item || typeof item !== 'object') continue;
     const l = item as Record<string, unknown>;
-    if (String(l.type ?? '').toUpperCase() !== 'TOKENS_LIMIT') continue;
+    const type = String(l.type ?? '').toUpperCase();
+    if (type !== 'TOKENS_LIMIT' && type !== 'CREDIT_LIMIT') continue;
     const percent = clampPercent(l.percentage);
     const resetAt = parseDate(l.nextResetTime);
     if (l.unit === 3) slots.push({ label: '5h', percent, resetAt });
@@ -175,7 +187,8 @@ export function parseGlmResponse(raw: unknown): PlancostData | null {
   if (!slots.some(s => s.label === '5h') && others.length) slots.push({ label: '5h', ...others.shift()! });
   if (!slots.some(s => s.label === 'week') && others.length) slots.push({ label: 'week', ...others.shift()! });
   slots.sort((a, b) => (a.label === '5h' ? 0 : 1) - (b.label === '5h' ? 0 : 1));
-  return slots.length ? { provider: 'glm', windows: slots } : null;
+  const level = planLevelOf(data && typeof data === 'object' ? (data as Record<string, unknown>).level : undefined);
+  return slots.length ? { provider: 'glm', windows: slots, ...(level ? { level } : {}) } : null;
 }
 
 // ---------- fetch ----------

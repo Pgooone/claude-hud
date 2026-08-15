@@ -61,6 +61,16 @@ test('formatPlancostLabel renders GLM windows with the GLM brand', () => {
   assert.equal(label.startsWith('🟡 GLM 5h 15% (03:44)'), true);
 });
 
+test('formatPlancostLabel appends plan level to the provider brand', () => {
+  setLanguage('en');
+  const label = formatPlancostLabel([{
+    provider: 'glm',
+    level: 'lite',
+    windows: [{ label: '5h', percent: 24, resetAt: null }],
+  }], t);
+  assert.equal(label, '🟢 GLM(lite) 5h 24%');
+});
+
 test('formatPlancostLabel joins multiple providers with separator', () => {
   setLanguage('en');
   const label = formatPlancostLabel([

@@ -352,12 +352,15 @@ ClaudeHUD 优先使用官方 statusline stdin 负载中的使用率数据。如�
 plancost 自行抓取供应商数据，无需维护 sidecar 文件。
 
 ```
-🟡 Kimi 5h 15% (03:44) · week 69% (08/13)      ← Kimi coding plan（5h + 周额度）
-💰 DS ¥40.96                                   ← DeepSeek 账户余额
+🟡 Kimi(advanced) 5h 15% (03:44) · week 69% (08/13)   ← Kimi coding plan（5h + 周额度）
+🟢 GLM(lite) 5h 21% (09:47) · week 4% (08/21)          ← GLM 套餐（token / 信用套餐）
+💰 DS ¥40.96                                           ← DeepSeek 账户余额
 ```
 
 健康度标记：🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85%（取最差窗口）。DeepSeek 只显示
-余额。HUD 会剥离外部数据的 ANSI 色码，因此用 emoji 承担颜色信号。
+余额。括号中的后缀是供应商返回的套餐等级（Kimi 会员等级 `LEVEL_*` →
+`advanced`、GLM `data.level` → `lite`），供应商不返回时不显示。HUD 会剥离
+外部数据的 ANSI 色码，因此用 emoji 承担颜色信号。
 
 #### 配置
 
@@ -406,7 +409,9 @@ plancost 自行抓取供应商数据，无需维护 sidecar 文件。
 - 查询：Kimi `GET api.kimi.com/coding/v1/usages`（Bearer）；DeepSeek
   `GET api.deepseek.com/user/balance`（Bearer）；GLM
   `GET {endpoint}/api/monitor/usage/quota/limit`（**裸 key，不加 Bearer**——
-  加了 Bearer 会导致 GLM 认证失败）。
+  加了 Bearer 会导致 GLM 认证失败）。GLM 同时接受 `TOKENS_LIMIT` 与
+  `CREDIT_LIMIT` 窗口（信用套餐 key 返回后者），并将 `data.level` 作为
+  套餐等级显示；Kimi 显示其会员等级。
 - 缓存：`~/.claude/plugins/claude-hud/plancost-cache/` 下每个供应商一个文件，
   5 分钟 TTL，以 apiKey 的哈希作为键——更换 key 会立即让旧缓存失效。
 - 降级：新鲜缓存 → 请求（2 秒超时）→ 同 key 的过期缓存 → 隐藏该段。

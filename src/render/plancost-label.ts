@@ -31,7 +31,8 @@ function windowsLabel(data: PlancostData, t: (k: MessageKey) => string): string 
   if (windows.length === 0) return '';
   const max = Math.max(...windows.map(w => w.percent));
   const parts = windows.map(w => `${w.label === 'week' ? t('label.plancostWeek') : w.label} ${w.percent}%${fmtReset(w.resetAt)}`);
-  return `${emojiOf(max)} ${PROVIDER_LABELS[data.provider]} ${parts.join(' · ')}`;
+  const level = typeof data.level === 'string' && data.level ? `(${data.level})` : '';
+  return `${emojiOf(max)} ${PROVIDER_LABELS[data.provider]}${level} ${parts.join(' · ')}`;
 }
 
 function balanceLabel(data: PlancostData): string {

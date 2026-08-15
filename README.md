@@ -343,13 +343,16 @@ unavailable to API-key / proxy users) and the external usage snapshot path:
 plancost fetches provider data itself instead of reading a sidecar file.
 
 ```
-🟡 Kimi 5h 15% (03:44) · week 69% (08/13)      ← Kimi coding plan (5h + weekly)
-💰 DS ¥40.96                                   ← DeepSeek account balance
+🟡 Kimi(advanced) 5h 15% (03:44) · week 69% (08/13)   ← Kimi coding plan (5h + weekly)
+🟢 GLM(lite) 5h 21% (09:47) · week 4% (08/21)          ← GLM plan (token or credit plan)
+💰 DS ¥40.96                                           ← DeepSeek account balance
 ```
 
 Health markers: 🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85% (worst window wins).
-DeepSeek shows balance only. The HUD strips ANSI from external data, so the
-emoji carry the color signal.
+DeepSeek shows balance only. The parenthesized suffix is the plan level
+reported by the provider (Kimi membership `LEVEL_*` → `advanced`, GLM
+`data.level` → `lite`); it is omitted when the provider reports none. The
+HUD strips ANSI from external data, so the emoji carry the color signal.
 
 #### Configuration
 
@@ -402,7 +405,9 @@ The segment renders after the cost segment by default. Reorder it with
 - Queries: Kimi `GET api.kimi.com/coding/v1/usages` (Bearer); DeepSeek
   `GET api.deepseek.com/user/balance` (Bearer); GLM
   `GET {endpoint}/api/monitor/usage/quota/limit` (**bare key, no Bearer** —
-  a Bearer prefix fails GLM auth).
+  a Bearer prefix fails GLM auth). GLM accepts both `TOKENS_LIMIT` and
+  `CREDIT_LIMIT` windows (credit-plan keys report the latter) and surfaces
+  `data.level` as the plan level; Kimi surfaces its membership level.
 - Caching: one file per provider under
   `~/.claude/plugins/claude-hud/plancost-cache/`, 5-minute TTL, keyed by a
   hash of the apiKey — swapping keys invalidates old data immediately.

@@ -4,6 +4,17 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+### Added (fork: plancost)
+- Plan level display: coding-plan providers append their plan level to the
+  brand — `Kimi(advanced)` (from `user.membership.level`), `GLM(lite)`
+  (from `data.level`). Omitted when the provider reports no level; DeepSeek
+  (balance-only) is unaffected.
+
+### Fixed (fork: plancost)
+- GLM keys on credit plans (e.g. `lite`) report `CREDIT_LIMIT` windows that
+  the parser dropped, silently hiding the segment. Both `TOKENS_LIMIT` and
+  `CREDIT_LIMIT` window types are now accepted.
+
 ## [0.7.3] - 2026-08-12
 
 ### Added (fork: plancost)
