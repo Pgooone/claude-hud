@@ -9,12 +9,46 @@
 
 > 🌐 [English README](README.md) | 中文文档
 
-## Fork 安装（plancost / 双语向导）
+## 关于本 Fork
 
-> 本 fork（Pgooone/claude-hud）新增了 **plancost** 段（Kimi / DeepSeek /
-> GLM 套餐额度或余额显示）、中英双语安装向导，以及 Anthropic 官方 OAuth
-> 登录检测。该功能也已作为 [PR #708](https://github.com/jarrodwatts/claude-hud/pull/708)
-> 提交上游。要在任意机器上直接安装本 fork：
+本 fork 基于 [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud)
+（v0.7.1 基线），聚焦**第三方套餐额度的可见性**。上游的所有功能原样可用——
+本 fork 只在其上叠加新特性并跟进上游发布。核心功能（plancost）也已作为
+[PR #708](https://github.com/jarrodwatts/claude-hud/pull/708) 提交上游；无论
+PR 是否被采纳，本 fork 都会持续维护、可独立安装。
+
+### 本 fork 新增了什么
+
+- **`plancost` 状态栏段**——直连五家供应商官方 API 查询套餐额度或余额：
+  **Kimi For Coding**（5h + 周窗口、套餐等级）、**DeepSeek**（账户余额）、
+  **智谱 GLM**（5h + 周、套餐等级、TOKENS/CREDIT 双类型、国内/国际站）、
+  **MiniMax**（5h + 周、剩余百分比反转）、**火山方舟**（5h + 周 + 月、原生
+  火山签名 V4、AFP→CodingPlan 双探测）。
+- **按实际模型自动切换**——`displayMode: "auto"` 依据 transcript 中 API
+  *实际服务*的模型匹配供应商：统一中转下混用 Kimi K3 / DeepSeek 的用户切模型
+  时自动看到正确的额度。subagent 回合不会干扰判定。
+- **中英双语安装向导**——`/claude-hud:setup` 与 `/claude-hud:configure` 的
+  问题按 HUD `language` 配置以英文或简体中文提问，plancost 的供应商/key/
+  显示模式/位置向导同样双语。
+- **官方套餐检测**——向导检测到 Anthropic 官方 OAuth 登录时，会询问是否
+  仍需第三方 plancost（官方 `rate_limits` 额度已由原生 usage 段显示）。
+- **务实的工程设计**——按供应商的 5 分钟磁盘缓存以凭据哈希为键（换 key
+  立即失效）、2 秒请求超时、过期缓存兜底、静默降级：任何供应商失败都不
+  影响 HUD 其余部分。100+ 测试覆盖供应商解析、缓存/TTL/key 行为与签名结构。
+
+### 适合哪些人
+
+- 用**国产 coding plan**（Kimi For Coding、智谱 GLM、MiniMax、火山方舟）
+  跑 Claude Code、想把剩余额度放进状态栏的用户——官方 `rate_limits` 显示
+  只覆盖 Anthropic 订阅登录。
+- 走**统一中转/代理**（`ANTHROPIC_BASE_URL`）接入多家供应商的用户——auto
+  模式显示当前实际服务会话的那家额度。
+- **按量付费 API 用户**（如 DeepSeek）——显示账户余额（`💰 DS ¥xx.xx`）
+  而非套餐窗口。
+- **中文用户**——双语向导 + 完整中文文档（本文件）。
+- 官方账号上想**官方 + 第三方额度并存**的用户。
+
+### Fork 安装
 
 在 Claude Code 实例中：
 

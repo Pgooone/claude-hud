@@ -9,13 +9,57 @@ A Claude Code plugin that shows what's happening — context usage, active tools
 
 > 🌐 English | [中文文档](README.zh.md)
 
-## Fork install (plancost / bilingual wizard)
+## About this fork
 
-> This fork (Pgooone/claude-hud) adds the **plancost** segment (Kimi / DeepSeek /
-> GLM plan usage or balance), a bilingual (EN / 简体中文) setup wizard, and
-> official-OAuth detection. The feature is also proposed upstream as
-> [PR #708](https://github.com/jarrodwatts/claude-hud/pull/708). To install this
-> fork directly on any machine:
+This is a fork of [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud)
+(v0.7.1 baseline) focused on **third-party coding-plan visibility**. Everything
+upstream still works unchanged — this fork only adds features on top and tracks
+upstream releases. The headline feature (plancost) is also proposed upstream as
+[PR #708](https://github.com/jarrodwatts/claude-hud/pull/708); this fork stays
+installable and maintained regardless of the PR outcome.
+
+### What this fork adds
+
+- **`plancost` statusline segment** — coding-plan usage or account balance for
+  five domestic providers, queried directly from each provider's own API:
+  **Kimi For Coding** (5h + weekly windows, plan level), **DeepSeek** (account
+  balance), **Zhipu GLM** (5h + weekly, plan level, TOKENS/CREDIT limit types,
+  CN/EN sites), **MiniMax** (5h + weekly, remaining→used inversion), and
+  **Volcengine Ark** (5h + weekly + monthly, native Volcengine Signature V4,
+  AFP→CodingPlan dual probe).
+- **Model-aware auto switching** — `displayMode: "auto"` matches the provider
+  to the model the API *actually served* (from the transcript), so users behind
+  a unified relay that mixes e.g. Kimi K3 and DeepSeek see the right quota as
+  they switch models. Subagent turns never skew the detection.
+- **Bilingual setup wizard** — `/claude-hud:setup` and `/claude-hud:configure`
+  ask their questions in English or 简体中文 following your HUD `language`
+  config, including the plancost provider/key/mode/placement wizard.
+- **Official-plan detection** — the wizard detects an Anthropic official OAuth
+  login and asks whether third-party plancost is still needed (the official
+  `rate_limits` usage is already shown by the native usage segment).
+- **Pragmatic engineering** — 5-minute per-provider disk cache keyed by a hash
+  of your credentials (swapping keys invalidates instantly), 2s request
+  timeout, stale-cache fallback, and silent degradation: provider failures
+  never break the HUD. 100+ tests including provider parsing, cache/TTL/key
+  behavior, and the signature structure.
+
+### Who it's for
+
+- Users running Claude Code on a **domestic coding plan** (Kimi For Coding,
+  Zhipu GLM coding plan, MiniMax coding plan, Volcengine Ark plan) who want
+  their remaining quota in the statusline — the official `rate_limits` display
+  only covers Anthropic subscriber logins.
+- Users on a **unified relay / proxy** (`ANTHROPIC_BASE_URL`) that routes to
+  different providers — auto mode shows the quota of whichever model is
+  actually serving the session.
+- **Pay-as-you-go API users** (e.g. DeepSeek) who want the account balance
+  (`💰 DS ¥xx.xx`) instead of quota windows.
+- **Chinese-speaking users** — bilingual wizard plus a full
+  [中文文档](README.zh.md).
+- Anyone who wants official + third-party quotas side by side on official
+  accounts.
+
+### Fork install
 
 Inside a Claude Code instance:
 
