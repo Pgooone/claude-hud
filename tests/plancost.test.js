@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import { tmpdir } from 'node:os';
-import { DEFAULT_CONFIG } from '../dist/config.js';
+import { DEFAULT_CONFIG, mergeConfig } from '../dist/config.js';
 import {
   collectPlancost,
   resolvePlancostModel,
@@ -11,6 +11,10 @@ import {
   parseKimiResponse,
   parseDeepSeekResponse,
   parseGlmResponse,
+  parseMiniMaxResponse,
+  parseVolcAfpResponse,
+  parseVolcCodingPlanResponse,
+  signVolcRequest,
 } from '../dist/plancost.js';
 
 const KIMI_FIXTURE = {
@@ -31,6 +35,38 @@ const GLM_FIXTURE = {
       { type: 'TOKENS_LIMIT', unit: 3, percentage: 15, nextResetTime: 1786537440000 },
       { type: 'TOKENS_LIMIT', unit: 6, percentage: 69, nextResetTime: 1787137440000 },
       { type: 'CONCURRENCY_LIMIT', unit: 1, percentage: 5, nextResetTime: 0 },
+    ],
+  },
+};
+
+const MINIMAX_FIXTURE = {
+  base_resp: { status_code: 0, status_msg: '' },
+  model_remains: [
+    { model_name: 'general', current_interval_remaining_percent: 85, current_weekly_remaining_percent: 31, current_weekly_status: 1, end_time: 1786537440000, weekly_end_time: 1787137440000 },
+    { model_name: 'abab6.5s-chat', current_interval_remaining_percent: 50, current_weekly_status: 0 },
+  ],
+};
+
+const VOLC_AFP_FIXTURE = {
+  ResponseMetadata: { RequestId: 'req-1', Action: 'GetAFPUsage', Version: '2024-01-01', Service: 'ark', Region: 'cn-beijing' },
+  Result: {
+    PlanType: 'agent_plan_pro',
+    AFPFiveHour: { Quota: 100, Used: 25, ResetTime: 1786537440000 },
+    AFPWeekly: { Quota: 700, Used: 483, ResetTime: 1787137440000 },
+    AFPMonthly: { Quota: 2800, Used: 2100, ResetTime: 1787655840000 },
+    AFPDaily: { Quota: 40, Used: 5, ResetTime: 1786451040000 },
+  },
+};
+
+const VOLC_CODING_PLAN_FIXTURE = {
+  ResponseMetadata: { RequestId: 'req-2', Action: 'GetCodingPlanUsage' },
+  Result: {
+    Status: 'ok',
+    UpdateTimestamp: 1786451040,
+    QuotaUsage: [
+      { Level: 'session', Percent: 40, ResetTimestamp: 1786458640 },
+      { Level: 'weekly', Percent: 72, ResetTimestamp: 1787137440 },
+      { Level: 'monthly', Percent: 55, ResetTimestamp: -1 },
     ],
   },
 };
@@ -377,4 +413,136 @@ test('collectPlancost all mode returns every provider concurrently', async () =>
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+// ---------- MiniMax ----------
+
+test('parseMiniMaxResponse inverts remaining percentages for the general entry', () => {
+  const d = parseMiniMaxResponse(MINIMAX_FIXTURE);
+  assert.ok(d);
+  assert.equal(d.provider, 'minimax');
+  assert.equal(d.windows.length, 2);
+  assert.equal(d.windows[0].label, '5h');
+  assert.equal(d.windows[0].percent, 15);   // 100 - 85 remaining
+  assert.equal(d.windows[1].label, 'week');
+  assert.equal(d.windows[1].percent, 69);   // 100 - 31 remaining
+  assert.ok(d.windows[0].resetAt instanceof Date);
+});
+
+test('parseMiniMaxResponse omits weekly window when status != 1', () => {
+  const raw = {
+    base_resp: { status_code: 0 },
+    model_remains: [{ model_name: 'general', current_interval_remaining_percent: 40, current_weekly_remaining_percent: 10, current_weekly_status: 0 }],
+  };
+  const d = parseMiniMaxResponse(raw);
+  assert.ok(d);
+  assert.equal(d.windows.length, 1);
+  assert.equal(d.windows[0].label, '5h');
+});
+
+test('parseMiniMaxResponse returns null on base_resp error envelope', () => {
+  assert.equal(parseMiniMaxResponse({ base_resp: { status_code: 1004, status_msg: 'invalid key' }, model_remains: [] }), null);
+  assert.equal(parseMiniMaxResponse({ model_remains: [{ model_name: 'other' }] }), null);
+});
+
+// ---------- Volcengine ----------
+
+test('parseVolcAfpResponse builds windows from absolute quotas, skipping AFPDaily', () => {
+  const d = parseVolcAfpResponse(VOLC_AFP_FIXTURE);
+  assert.ok(d);
+  assert.equal(d.provider, 'volcengine');
+  assert.equal(d.windows.length, 3); // 5h + week + month; daily intentionally skipped
+  assert.equal(d.windows[0].label, '5h');
+  assert.equal(d.windows[0].percent, 25);        // 25/100
+  assert.equal(d.windows[1].label, 'week');
+  assert.equal(d.windows[1].percent, 69);        // 483/700
+  assert.equal(d.windows[2].label, 'month');
+  assert.equal(d.windows[2].percent, 75);        // 2100/2800
+});
+
+test('parseVolcAfpResponse returns null when quota <= 0 (not subscribed) or on error envelope', () => {
+  const noSub = { Result: { PlanType: '', AFPFiveHour: { Quota: 0, Used: 0 } } };
+  assert.equal(parseVolcAfpResponse(noSub), null);
+  const errEnvelope = { ResponseMetadata: { Error: { Code: 'InvalidAuthorization', Message: 'sig' } }, Result: {} };
+  assert.equal(parseVolcAfpResponse(errEnvelope), null);
+});
+
+test('parseVolcCodingPlanResponse maps levels and treats ResetTimestamp -1 as no reset', () => {
+  const d = parseVolcCodingPlanResponse(VOLC_CODING_PLAN_FIXTURE);
+  assert.ok(d);
+  assert.equal(d.windows.length, 3);
+  assert.equal(d.windows[0].label, '5h');       // session
+  assert.equal(d.windows[0].percent, 40);
+  assert.equal(d.windows[1].label, 'week');     // weekly
+  assert.equal(d.windows[2].label, 'month');    // monthly
+  assert.equal(d.windows[2].resetAt, null);     // ResetTimestamp -1
+  assert.equal(d.windows[0].resetAt instanceof Date, true); // seconds → Date
+});
+
+test('signVolcRequest follows the Volcengine SigV4 variant structure', () => {
+  const fixedNow = Date.UTC(2026, 7, 12, 8, 30, 5); // 2026-08-12T08:30:05Z
+  const { url, headers } = signVolcRequest('AKLT-test', 'sk-test', 'GetAFPUsage', fixedNow);
+  // Same canonical query string is used for signing and the request URL (alphabetical).
+  assert.equal(url, 'https://open.volcengineapi.com/?Action=GetAFPUsage&Region=cn-beijing&Version=2024-01-01');
+  assert.equal(headers['X-Date'], '20260812T083005Z');
+  assert.equal(headers.Host, 'open.volcengineapi.com');
+  assert.equal(headers['Content-Type'], 'application/json; charset=utf-8');
+  // sha256 of empty string
+  assert.equal(headers['X-Content-Sha256'], 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+  const auth = headers.Authorization;
+  assert.ok(auth.startsWith('HMAC-SHA256 Credential=AKLT-test/20260812/cn-beijing/ark/request, '));
+  assert.ok(auth.includes('SignedHeaders=host;x-date;x-content-sha256;content-type'));
+  assert.ok(/Signature=[0-9a-f]{64}$/.test(auth));
+});
+
+test('collectPlancost volcengine falls back from AFP to Coding Plan', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'claude-hud-plancost-volc-'));
+  try {
+    const calls = [];
+    const deps = {
+      fetchImpl: async (url, init) => {
+        calls.push(init.headers['X-Date'] ? url : url);
+        if (url.includes('GetAFPUsage')) {
+          return { ok: true, json: async () => ({ Result: { PlanType: '', AFPFiveHour: { Quota: 0, Used: 0 } } }) };
+        }
+        return { ok: true, json: async () => VOLC_CODING_PLAN_FIXTURE };
+      },
+      now: () => 1000000,
+      cacheDir: () => dir,
+    };
+    const cfg = makePlancostConfig({
+      providers: { volcengine: { apiKey: 'AKLT-test', secretKey: 'sk-test', models: ['doubao'] } },
+    });
+    const data = await collectPlancost(cfg, { model: { display_name: 'doubao-seed-2.0-code' } }, {}, deps);
+    assert.equal(data.length, 1);
+    assert.equal(data[0].provider, 'volcengine');
+    assert.equal(data[0].windows.length, 3);
+    assert.equal(calls.filter(u => u.includes('GetAFPUsage')).length, 1);
+    assert.equal(calls.filter(u => u.includes('GetCodingPlanUsage')).length, 1);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// ---------- config merge: new providers ----------
+
+test('mergeConfig registers volcengine only when both AK and SK are present', () => {
+  
+  const withBoth = mergeConfig({
+    plancost: { enabled: true, providers: { volcengine: { apiKey: 'AKLT-x', secretKey: 'sk-x', models: ['doubao'] } } },
+  });
+  assert.ok(withBoth.plancost.providers.volcengine);
+  assert.equal(withBoth.plancost.providers.volcengine.secretKey, 'sk-x');
+  const missingSk = mergeConfig({
+    plancost: { enabled: true, providers: { volcengine: { apiKey: 'AKLT-x', models: ['doubao'] } } },
+  });
+  assert.equal(missingSk.plancost.providers.volcengine, undefined);
+});
+
+test('mergeConfig accepts minimax provider with endpoint override', () => {
+  
+  const cfg = mergeConfig({
+    plancost: { enabled: true, providers: { minimax: { apiKey: 'eyJ-x', models: ['minimax'], endpoint: 'https://api.minimax.io' } } },
+  });
+  assert.equal(cfg.plancost.providers.minimax.endpoint, 'https://api.minimax.io');
 });

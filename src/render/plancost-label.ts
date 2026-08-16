@@ -8,7 +8,13 @@
 import type { PlancostProviderId, PlancostData } from '../plancost.js';
 import type { MessageKey } from '../i18n/types.js';
 
-const PROVIDER_LABELS: Record<PlancostProviderId, string> = { kimi: 'Kimi', deepseek: 'DS', glm: 'GLM' };
+const PROVIDER_LABELS: Record<PlancostProviderId, string> = {
+  kimi: 'Kimi',
+  deepseek: 'DS',
+  glm: 'GLM',
+  minimax: 'MM',
+  volcengine: 'Volc',
+};
 const CURRENCY_SYMBOLS: Record<string, string> = { CNY: '¥', USD: '$' };
 
 function emojiOf(percent: number): '🟢' | '🟡' | '🔴' {
@@ -30,7 +36,7 @@ function windowsLabel(data: PlancostData, t: (k: MessageKey) => string): string 
   const windows = data.windows ?? [];
   if (windows.length === 0) return '';
   const max = Math.max(...windows.map(w => w.percent));
-  const parts = windows.map(w => `${w.label === 'week' ? t('label.plancostWeek') : w.label} ${w.percent}%${fmtReset(w.resetAt)}`);
+  const parts = windows.map(w => `${w.label === 'week' ? t('label.plancostWeek') : w.label === 'month' ? t('label.plancostMonth') : w.label} ${w.percent}%${fmtReset(w.resetAt)}`);
   const level = typeof data.level === 'string' && data.level ? `(${data.level})` : '';
   return `${emojiOf(max)} ${PROVIDER_LABELS[data.provider]}${level} ${parts.join(' · ')}`;
 }

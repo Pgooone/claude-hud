@@ -345,10 +345,10 @@ ClaudeHUD 优先使用官方 statusline stdin 负载中的使用率数据。如�
 
 ### Plancost（第三方模型供应商）— fork 新增
 
-`plancost` 第一行段显示**第三方国产模型供应商的套餐额度或余额**，直接调用
-各家供应商 API 查询（Kimi For Coding、DeepSeek、智谱 GLM）。**默认关闭**——
-需要手动启用并填写 API key。它与官方 `rate_limits` 显示（要求 Anthropic
-订阅登录，API key / 中转用户拿不到）及外部 usage 快照路径互为补充：
+`plancost` 第一行段显示**第三方模型供应商的套餐额度或余额**，直接调用
+各家供应商 API 查询（Kimi For Coding、DeepSeek、智谱 GLM、MiniMax、火山方舟）。
+**默认关闭**——需要手动启用并填写 API key。它与官方 `rate_limits` 显示（要求
+Anthropic 订阅登录，API key / 中转用户拿不到）及外部 usage 快照路径互为补充：
 plancost 自行抓取供应商数据，无需维护 sidecar 文件。
 
 ```
@@ -371,10 +371,12 @@ plancost 自行抓取供应商数据，无需维护 sidecar 文件。
     "enabled": true,
     "displayMode": "auto",        // "auto" | "all"
     "providers": {
-      "kimi":     { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
-      "deepseek": { "apiKey": "sk-...",      "models": ["deepseek"] },
-      "glm":      { "apiKey": "id.secret",   "models": ["glm", "chatglm"],
-                    "endpoint": "https://open.bigmodel.cn" }   // 可选覆盖
+      "kimi":       { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek":   { "apiKey": "sk-...",      "models": ["deepseek"] },
+      "glm":        { "apiKey": "id.secret",   "models": ["glm", "chatglm"] },
+      "minimax":    { "apiKey": "eyJ...",      "models": ["minimax", "abab", "m2"],
+                      "endpoint": "https://api.minimax.io" },   // 仅国际站需要，国内默认
+      "volcengine": { "apiKey": "AKLT...", "secretKey": "...", "models": ["doubao", "volc"] }
     }
   }
 }
@@ -386,14 +388,22 @@ plancost 自行抓取供应商数据，无需维护 sidecar 文件。
     `message.model`，首个 assistant 消息前回退到 stdin 模型）的供应商。
     subagent 的回合不会覆盖主会话模型。
   - `all`：显示所有配置了非空 `apiKey` 的供应商，按配置键顺序。
-- **`providers`**：键固定为 `kimi` / `deepseek` / `glm`，未知键会被丢弃。
-  `models` 是不区分大小写的模型名前缀（如 `k3` 匹配 `k3[1M]` 和 `k3-256`）。
-  `endpoint` 仅在 GLM 国际站（`https://api.z.ai`）时需要。
+- **`providers`**：键固定为 `kimi` / `deepseek` / `glm` / `minimax` /
+  `volcengine`，未知键会被丢弃。`models` 是不区分大小写的模型名前缀
+  （如 `k3` 匹配 `k3[1M]` 和 `k3-256`）。`endpoint` 覆盖 API 基址
+  （GLM 国际站 `https://api.z.ai`；MiniMax 国际站 `https://api.minimax.io`）。
 
 各 key 的获取位置：
 - **Kimi For Coding**：`sk-kimi-...`，在 https://www.kimi.com/code/console 创建
 - **DeepSeek**：`sk-...`，在 https://platform.deepseek.com/api_keys 创建
 - **智谱 GLM**：`{id}.{secret}`（不含 `sk-` 前缀），在 https://open.bigmodel.cn 创建
+- **MiniMax**：开放平台 API key（Bearer），在 https://platform.minimaxi.com 创建
+  （国际站 https://www.minimax.io，需同时配置 endpoint 覆盖）
+- **火山方舟**：火山引擎控制台 IAM 的 **AccessKey ID（`AKLT` 开头）+ Secret
+  Access Key**（https://console.volcengine.com/iam）——这是账号级签名凭据，
+  **不是**推理用的 API key。用量查询使用火山签名 V4（原生实现，无需 CLI）；
+  先探测 Agent Plan（AFP）接口，未订阅时自动回落 Coding Plan 接口；
+  火山窗口在套餐有月额度时会显示 `month` 窗口。
 
 #### 位置排布
 
@@ -409,7 +419,11 @@ plancost 自行抓取供应商数据，无需维护 sidecar 文件。
 - 查询：Kimi `GET api.kimi.com/coding/v1/usages`（Bearer）；DeepSeek
   `GET api.deepseek.com/user/balance`（Bearer）；GLM
   `GET {endpoint}/api/monitor/usage/quota/limit`（**裸 key，不加 Bearer**——
-  加了 Bearer 会导致 GLM 认证失败）。GLM 同时接受 `TOKENS_LIMIT` 与
+  加了 Bearer 会导致 GLM 认证失败）；MiniMax
+  `GET api.minimaxi.com/v1/api/openplatform/coding_plan/remains`（Bearer，
+  剩余百分比反转为已用）；火山方舟 `POST open.volcengineapi.com`
+  （`GetAFPUsage` → 未订阅回落 `GetCodingPlanUsage`，火山签名 V4 + AK/SK，
+  兼容 HTTP 200/400 上的 ResponseMetadata.Error 业务错误信封）。GLM 同时接受 `TOKENS_LIMIT` 与
   `CREDIT_LIMIT` 窗口（信用套餐 key 返回后者），并将 `data.level` 作为
   套餐等级显示；Kimi 显示其会员等级。
 - 缓存：`~/.claude/plugins/claude-hud/plancost-cache/` 下每个供应商一个文件，

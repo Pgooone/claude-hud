@@ -5,16 +5,29 @@
     "email": "1159630139@qq.com"
   },
   "metadata": {
-    "description": "Real-time statusline HUD for Claude Code - context health, tool activity, agent tracking, todo progress, and third-party plan cost (Kimi/DeepSeek/GLM)",
-    "version": "0.7.4"
+    "description": "Real-time statusline HUD for Claude Code - context health, tool activity, agent tracking, todo progress, and third-party plan cost (Kimi/DeepSeek/GLM/MiniMax/Volcengine)",
+    "version": "0.7.5"
   },
   "plugins": [
     {
       "name": "claude-hud",
       "source": "./",
-      "description": "Real-time statusline showing context usage, active tools, running agents, todo progress, and plancost (Kimi/DeepSeek/GLM plan usage or balance). Always visible below your input.",
+      "description": "Real-time statusline showing context usage, active tools, running agents, todo progress, and plancost (Kimi/DeepSeek/GLM/MiniMax/Volcengine plan usage or balance). Always visible below your input.",
       "category": "monitoring",
-      "tags": ["hud", "statusline", "monitoring", "context", "tools", "agents", "todos", "plancost", "kimi", "deepseek"]
+      "tags": [
+        "hud",
+        "statusline",
+        "monitoring",
+        "context",
+        "tools",
+        "agents",
+        "todos",
+        "plancost",
+        "kimi",
+        "deepseek",
+        "minimax",
+        "volcengine"
+      ]
     }
   ]
 }

@@ -6,6 +6,7 @@ export const en: Messages = {
   "label.usage": "Usage",
   "label.weekly": "Weekly",
   "label.plancostWeek": "week",
+  "label.plancostMonth": "month",
   "label.approxRam": "Approx RAM",
   "label.promptCache": "Cache",
   "label.rules": "rules",

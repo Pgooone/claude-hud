@@ -4,6 +4,7 @@ export const zhHans = {
     "label.usage": "用量",
     "label.weekly": "本周",
     "label.plancostWeek": "周",
+    "label.plancostMonth": "月",
     "label.approxRam": "内存",
     "label.promptCache": "缓存",
     "label.rules": "规则",

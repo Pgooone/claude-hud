@@ -57,6 +57,12 @@ export interface PlancostProviderConfig {
     models: string[];
     /** Optional API base override (e.g. GLM international: https://api.z.ai). */
     endpoint?: string;
+    /**
+     * Volcengine only: the Secret Access Key paired with apiKey (the AccessKey
+     * ID). Volcengine usage queries use IAM account-level AK/SK signing
+     * (Volcengine Signature V4), NOT the inference API key.
+     */
+    secretKey?: string;
 }
 export interface PlancostConfig {
     enabled: boolean;

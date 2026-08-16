@@ -4,6 +4,7 @@ export type MessageKey =
   | "label.usage"
   | "label.weekly"
   | "label.plancostWeek"
+  | "label.plancostMonth"
   | "label.approxRam"
   | "label.promptCache"
   | "label.rules"

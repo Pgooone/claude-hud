@@ -335,12 +335,13 @@ Set `display.usageCompact` to `true` if you want the shorter usage-only form, fo
 ### Plancost (third-party model providers)
 
 A `plancost` first-line segment shows **coding-plan usage or account balance
-for third-party domestic model providers**, queried directly from the provider
-APIs (Kimi For Coding, DeepSeek, Zhipu GLM). It is **disabled by default** —
-you must opt in and fill in API keys. This complements the official
-`rate_limits` display (which requires an Anthropic subscriber login and is
-unavailable to API-key / proxy users) and the external usage snapshot path:
-plancost fetches provider data itself instead of reading a sidecar file.
+for third-party model providers**, queried directly from the provider
+APIs (Kimi For Coding, DeepSeek, Zhipu GLM, MiniMax, Volcengine Ark). It is
+**disabled by default** — you must opt in and fill in API keys. This
+complements the official `rate_limits` display (which requires an Anthropic
+subscriber login and is unavailable to API-key / proxy users) and the external
+usage snapshot path: plancost fetches provider data itself instead of reading
+a sidecar file.
 
 ```
 🟡 Kimi(advanced) 5h 15% (03:44) · week 69% (08/13)   ← Kimi coding plan (5h + weekly)
@@ -363,10 +364,12 @@ HUD strips ANSI from external data, so the emoji carry the color signal.
     "enabled": true,
     "displayMode": "auto",        // "auto" | "all"
     "providers": {
-      "kimi":     { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
-      "deepseek": { "apiKey": "sk-...",      "models": ["deepseek"] },
-      "glm":      { "apiKey": "id.secret",   "models": ["glm", "chatglm"],
-                    "endpoint": "https://open.bigmodel.cn" }   // optional override
+      "kimi":       { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek":   { "apiKey": "sk-...",      "models": ["deepseek"] },
+      "glm":        { "apiKey": "id.secret",   "models": ["glm", "chatglm"] },
+      "minimax":    { "apiKey": "eyJ...",      "models": ["minimax", "abab", "m2"],
+                      "endpoint": "https://api.minimax.io" },   // EN site only; CN default
+      "volcengine": { "apiKey": "AKLT...", "secretKey": "...", "models": ["doubao", "volc"] }
     }
   }
 }
@@ -380,16 +383,25 @@ HUD strips ANSI from external data, so the emoji carry the color signal.
     override the main-session model.
   - `all`: show every provider that has a non-empty `apiKey`, in config
     key order.
-- **`providers`**: keys are fixed (`kimi` / `deepseek` / `glm`); unknown keys
-  are dropped. `models` are case-insensitive name prefixes (e.g. `k3` matches
-  `k3[1M]` and `k3-256`). `endpoint` is only needed for the GLM international
-  site (`https://api.z.ai`).
+- **`providers`**: keys are fixed (`kimi` / `deepseek` / `glm` / `minimax` /
+  `volcengine`); unknown keys are dropped. `models` are case-insensitive name
+  prefixes (e.g. `k3` matches `k3[1M]` and `k3-256`). `endpoint` overrides the
+  API base (GLM international `https://api.z.ai`; MiniMax international
+  `https://api.minimax.io`).
 
 Where each key comes from:
 - **Kimi For Coding**: `sk-kimi-...`, create at https://www.kimi.com/code/console
 - **DeepSeek**: `sk-...`, create at https://platform.deepseek.com/api_keys
 - **Zhipu GLM**: `{id}.{secret}` (no `sk-` prefix), create at
   https://open.bigmodel.cn
+- **MiniMax**: platform API key (Bearer), create at
+  https://platform.minimaxi.com (international: https://www.minimax.io + endpoint override)
+- **Volcengine Ark**: the IAM **AccessKey ID (`AKLT...`) + Secret Access Key**
+  pair from https://console.volcengine.com/iam — these are account-level
+  signing credentials, **not** the inference API key. Usage queries are
+  signed with Volcengine Signature V4 (implemented natively); the Agent Plan
+  (AFP) endpoint is probed first and falls back to the Coding Plan endpoint
+  automatically. Volcengine windows include a monthly quota when present.
 
 #### Position on the line
 
@@ -405,7 +417,12 @@ The segment renders after the cost segment by default. Reorder it with
 - Queries: Kimi `GET api.kimi.com/coding/v1/usages` (Bearer); DeepSeek
   `GET api.deepseek.com/user/balance` (Bearer); GLM
   `GET {endpoint}/api/monitor/usage/quota/limit` (**bare key, no Bearer** —
-  a Bearer prefix fails GLM auth). GLM accepts both `TOKENS_LIMIT` and
+  a Bearer prefix fails GLM auth); MiniMax
+  `GET api.minimaxi.com/v1/api/openplatform/coding_plan/remains` (Bearer,
+  remaining percentages inverted to used); Volcengine Ark
+  `POST open.volcengineapi.com` (`GetAFPUsage` → `GetCodingPlanUsage` fallback,
+  Volcengine Signature V4 with the AK/SK pair, error envelopes on HTTP 200/400
+  handled). GLM accepts both `TOKENS_LIMIT` and
   `CREDIT_LIMIT` windows (credit-plan keys report the latter) and surfaces
   `data.level` as the plan level; Kimi surfaces its membership level.
 - Caching: one file per provider under

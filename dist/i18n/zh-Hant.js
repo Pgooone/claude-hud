@@ -4,6 +4,7 @@ export const zhHant = {
     "label.usage": "用量",
     "label.weekly": "本週",
     "label.plancostWeek": "週",
+    "label.plancostMonth": "月",
     "label.approxRam": "記憶體",
     "label.promptCache": "快取",
     "label.rules": "規則",

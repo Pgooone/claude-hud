@@ -99,6 +99,12 @@ export interface PlancostProviderConfig {
   models: string[];
   /** Optional API base override (e.g. GLM international: https://api.z.ai). */
   endpoint?: string;
+  /**
+   * Volcengine only: the Secret Access Key paired with apiKey (the AccessKey
+   * ID). Volcengine usage queries use IAM account-level AK/SK signing
+   * (Volcengine Signature V4), NOT the inference API key.
+   */
+  secretKey?: string;
 }
 
 export interface PlancostConfig {
@@ -546,7 +552,7 @@ function validateProjectLineOrder(value: unknown): FirstLineSegment[] {
   return order;
 }
 
-const KNOWN_PLANCOST_PROVIDERS = new Set(['kimi', 'deepseek', 'glm']);
+const KNOWN_PLANCOST_PROVIDERS = new Set(['kimi', 'deepseek', 'glm', 'minimax', 'volcengine']);
 
 function validatePlancostDisplayMode(value: unknown): value is PlancostDisplayMode {
   return value === 'auto' || value === 'all';
@@ -573,7 +579,13 @@ function mergePlancostProviders(raw: unknown): Record<string, PlancostProviderCo
     const endpoint = typeof e.endpoint === 'string'
       ? sanitizeDisplayText(e.endpoint).trim().slice(0, 256)
       : undefined;
-    out[name] = { apiKey, models, ...(endpoint ? { endpoint } : {}) };
+    const secretKey = typeof e.secretKey === 'string'
+      ? sanitizeDisplayText(e.secretKey).trim().slice(0, 512)
+      : undefined;
+    // Volcengine signs requests with AK + SK; an entry missing the secret key
+    // cannot query anything, so it is not registered at all.
+    if (name === 'volcengine' && !secretKey) continue;
+    out[name] = { apiKey, models, ...(endpoint ? { endpoint } : {}), ...(secretKey ? { secretKey } : {}) };
   }
   return out;
 }

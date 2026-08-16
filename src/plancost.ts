@@ -23,10 +23,10 @@ import { getModelName } from './stdin.js';
 import { sanitizeDisplayText } from './utils/sanitize.js';
 import type { StdinData, TranscriptData } from './types.js';
 
-export type PlancostProviderId = 'kimi' | 'deepseek' | 'glm';
+export type PlancostProviderId = 'kimi' | 'deepseek' | 'glm' | 'minimax' | 'volcengine';
 
 export interface PlancostWindow {
-  label: '5h' | 'week';
+  label: '5h' | 'week' | 'month';
   /** 0-100 percentage of the window used. */
   percent: number;
   resetAt: Date | null;
@@ -160,6 +160,92 @@ export function parseDeepSeekResponse(raw: unknown): PlancostData | null {
 }
 
 /**
+ * MiniMax coding plan: `model_remains[]` carries REMAINING percentages —
+ * invert to used. Only the "general" entry is the plan quota; the weekly
+ * bucket exists only when current_weekly_status === 1.
+ */
+export function parseMiniMaxResponse(raw: unknown): PlancostData | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const d = raw as Record<string, unknown>;
+  const baseResp = d.base_resp as Record<string, unknown> | undefined;
+  if (baseResp && Number(baseResp.status_code) !== 0) return null;
+  const remains = d.model_remains;
+  if (!Array.isArray(remains)) return null;
+  const general = remains.find(
+    (m): m is Record<string, unknown> =>
+      !!m && typeof m === 'object' && (m as Record<string, unknown>).model_name === 'general',
+  );
+  if (!general) return null;
+  const windows: PlancostWindow[] = [];
+  const intervalRemain = Number(general.current_interval_remaining_percent);
+  if (Number.isFinite(intervalRemain)) {
+    windows.push({ label: '5h', percent: clampPercent(100 - intervalRemain), resetAt: parseDate(general.end_time) });
+  }
+  if (general.current_weekly_status === 1) {
+    const weeklyRemain = Number(general.current_weekly_remaining_percent);
+    if (Number.isFinite(weeklyRemain)) {
+      windows.push({ label: 'week', percent: clampPercent(100 - weeklyRemain), resetAt: parseDate(general.weekly_end_time) });
+    }
+  }
+  return windows.length ? { provider: 'minimax', windows } : null;
+}
+
+/** Volcengine API responses carry errors in a 200 ResponseMetadata.Error envelope. */
+function volcEnvelopeError(raw: unknown): boolean {
+  if (!raw || typeof raw !== 'object') return true;
+  const meta = (raw as Record<string, unknown>).ResponseMetadata as Record<string, unknown> | undefined;
+  return !!(meta && meta.Error && typeof meta.Error === 'object');
+}
+
+/**
+ * Volcengine Agent Plan (AFP): absolute Quota/Used windows for 5h / weekly /
+ * monthly. AFPDaily is intentionally skipped (hidden in the official console;
+ * its quota is historically above the weekly cap). Returns null when no
+ * window has Quota > 0 — the caller falls back to the Coding Plan API.
+ */
+export function parseVolcAfpResponse(raw: unknown): PlancostData | null {
+  if (volcEnvelopeError(raw)) return null;
+  const result = (raw as Record<string, unknown>).Result as Record<string, unknown> | undefined;
+  if (!result) return null;
+  const windows: PlancostWindow[] = [];
+  const add = (key: string, label: PlancostWindow['label']) => {
+    const w = result[key] as Record<string, unknown> | undefined;
+    if (!w || typeof w !== 'object') return;
+    const quota = Number(w.Quota);
+    const used = Number(w.Used);
+    if (!(quota > 0) || !Number.isFinite(used) || used < 0) return;
+    windows.push({ label, percent: clampPercent((used / quota) * 100), resetAt: parseDate(w.ResetTime) });
+  };
+  add('AFPFiveHour', '5h');
+  add('AFPWeekly', 'week');
+  add('AFPMonthly', 'month');
+  return windows.length ? { provider: 'volcengine', windows } : null;
+}
+
+/** Volcengine Coding Plan: percentage-only windows keyed by Level. ResetTimestamp is SECONDS; <= 0 means no active window. */
+export function parseVolcCodingPlanResponse(raw: unknown): PlancostData | null {
+  if (volcEnvelopeError(raw)) return null;
+  const result = (raw as Record<string, unknown>).Result as Record<string, unknown> | undefined;
+  const usage = result?.QuotaUsage;
+  if (!Array.isArray(usage)) return null;
+  const LEVEL_MAP: Record<string, PlancostWindow['label']> = { session: '5h', weekly: 'week', monthly: 'month' };
+  const windows: PlancostWindow[] = [];
+  for (const item of usage) {
+    if (!item || typeof item !== 'object') continue;
+    const u = item as Record<string, unknown>;
+    const label = LEVEL_MAP[String(u.Level)];
+    if (!label) continue;
+    const resetRaw = Number(u.ResetTimestamp);
+    windows.push({
+      label,
+      percent: clampPercent(u.Percent),
+      resetAt: Number.isFinite(resetRaw) && resetRaw > 0 ? new Date(resetRaw * 1000) : null,
+    });
+  }
+  return windows.length ? { provider: 'volcengine', windows } : null;
+}
+
+/**
  * GLM (Zhipu): TOKENS_LIMIT / CREDIT_LIMIT windows. unit 3 → 5h window,
  * unit 6 → weekly; other units fill the missing slots ordered by next reset
  * time. `data.level` (e.g. "lite") is surfaced as the plan level.
@@ -234,6 +320,118 @@ async function fetchGlm(key: string, endpoint: string | undefined, fetchImpl: ty
   return data;
 }
 
+async function fetchMiniMax(key: string, endpoint: string | undefined, fetchImpl: typeof fetch): Promise<PlancostData> {
+  const base = endpoint || 'https://api.minimaxi.com';
+  const raw = await getJson(
+    `${base}/v1/api/openplatform/coding_plan/remains`,
+    { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+    fetchImpl,
+  );
+  const data = parseMiniMaxResponse(raw);
+  if (!data) throw new Error('invalid minimax payload');
+  return data;
+}
+
+// ---------- Volcengine Signature V4 (per cc-switch coding_plan.rs) ----------
+
+const VOLC_HOST = 'open.volcengineapi.com';
+const VOLC_REGION = 'cn-beijing';
+const VOLC_SERVICE = 'ark';
+// Volcengine's variant deviates from standard AWS SigV4: this exact header
+// order (NOT alphabetical), algorithm "HMAC-SHA256" (no AWS4 prefix), scope
+// suffix "request" (not aws4_request), and the secret is used raw.
+const VOLC_SIGNED_HEADERS = 'host;x-date;x-content-sha256;content-type';
+
+function hmacHex(key: crypto.BinaryLike | crypto.KeyObject, data: string): string {
+  return crypto.createHmac('sha256', key).update(data).digest('hex');
+}
+
+/**
+ * Sign a Volcengine ark gateway request (POST with empty body).
+ * The canonical query string is reused verbatim in the request URL — any
+ * difference between the signed and sent query breaks the signature.
+ */
+export function signVolcRequest(
+  accessKey: string,
+  secretKey: string,
+  action: string,
+  nowMs: number,
+): { url: string; headers: Record<string, string> } {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const now = new Date(nowMs);
+  const xDate = `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}` +
+    `T${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}Z`;
+  const shortDate = xDate.slice(0, 8);
+  const contentType = 'application/json; charset=utf-8';
+  const payloadHash = crypto.createHash('sha256').update('').digest('hex');
+  const canonicalQuery = `Action=${action}&Region=${VOLC_REGION}&Version=2024-01-01`;
+  // Header lines follow Volcengine's fixed order, not alphabetical order.
+  const canonicalHeaders =
+    `host:${VOLC_HOST}\n` +
+    `x-date:${xDate}\n` +
+    `x-content-sha256:${payloadHash}\n` +
+    `content-type:${contentType}\n`;
+  const canonicalRequest =
+    `POST\n/\n${canonicalQuery}\n${canonicalHeaders}\n${VOLC_SIGNED_HEADERS}\n${payloadHash}`;
+  const scope = `${shortDate}/${VOLC_REGION}/${VOLC_SERVICE}/request`;
+  const stringToSign =
+    `HMAC-SHA256\n${xDate}\n${scope}\n` +
+    crypto.createHash('sha256').update(canonicalRequest).digest('hex');
+  const kDate = crypto.createHmac('sha256', secretKey).update(shortDate).digest();
+  const kRegion = crypto.createHmac('sha256', kDate).update(VOLC_REGION).digest();
+  const kService = crypto.createHmac('sha256', kRegion).update(VOLC_SERVICE).digest();
+  const kSigning = crypto.createHmac('sha256', kService).update('request').digest();
+  const signature = crypto.createHmac('sha256', kSigning).update(stringToSign).digest('hex');
+  return {
+    url: `https://${VOLC_HOST}/?${canonicalQuery}`,
+    headers: {
+      Host: VOLC_HOST,
+      'X-Date': xDate,
+      'X-Content-Sha256': payloadHash,
+      'Content-Type': contentType,
+      Authorization: `HMAC-SHA256 Credential=${accessKey}/${scope}, SignedHeaders=${VOLC_SIGNED_HEADERS}, Signature=${signature}`,
+    },
+  };
+}
+
+async function postVolcJson(
+  signed: { url: string; headers: Record<string, string> },
+  fetchImpl: typeof fetch,
+): Promise<unknown> {
+  const res = await fetchImpl(signed.url, {
+    method: 'POST',
+    headers: signed.headers,
+    body: '',
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  // The gateway often returns signature errors as HTTP 400 with a
+  // ResponseMetadata.Error envelope; surface the body so the parser sees it.
+  const raw = (await res.json().catch(() => null)) as unknown;
+  if (!res.ok && !raw) throw new Error(`HTTP ${res.status}`);
+  return raw;
+}
+
+/**
+ * Volcengine dual probe: try the Agent Plan (AFP) first; when it reports no
+ * subscribed window (or fails), fall back to the Coding Plan API.
+ */
+async function fetchVolcengine(
+  ak: string,
+  sk: string,
+  fetchImpl: typeof fetch,
+  now: () => number,
+): Promise<PlancostData> {
+  try {
+    const afp = await postVolcJson(signVolcRequest(ak, sk, 'GetAFPUsage', now()), fetchImpl);
+    const afpData = parseVolcAfpResponse(afp);
+    if (afpData) return afpData;
+  } catch { /* fall through to the Coding Plan probe */ }
+  const cpRaw = await postVolcJson(signVolcRequest(ak, sk, 'GetCodingPlanUsage', now()), fetchImpl);
+  const data = parseVolcCodingPlanResponse(cpRaw);
+  if (!data) throw new Error('invalid volcengine payload');
+  return data;
+}
+
 // ---------- disk cache ----------
 
 interface CacheEntry {
@@ -290,7 +488,8 @@ function writeCache(cacheDir: string, provider: string, keyHash: string, updated
 // ---------- collect ----------
 
 async function fetchOrCache(provider: PlancostProviderId, cfg: PlancostProviderConfig, deps: PlancostDeps): Promise<PlancostData> {
-  const keyHash = keyHashOf(cfg.apiKey);
+  // Volcengine signs with AK + SK; hash both so swapping either invalidates cache.
+  const keyHash = keyHashOf(cfg.apiKey + (cfg.secretKey ? `\n${cfg.secretKey}` : ''));
   const dir = deps.cacheDir();
   const cached = readCache(dir, provider, keyHash);
   if (cached && deps.now() - cached.updatedAt <= TTL) return cached.data;
@@ -299,7 +498,11 @@ async function fetchOrCache(provider: PlancostProviderId, cfg: PlancostProviderC
       ? await fetchKimi(cfg.apiKey, deps.fetchImpl)
       : provider === 'deepseek'
         ? await fetchDeepSeek(cfg.apiKey, deps.fetchImpl)
-        : await fetchGlm(cfg.apiKey, cfg.endpoint, deps.fetchImpl);
+        : provider === 'glm'
+          ? await fetchGlm(cfg.apiKey, cfg.endpoint, deps.fetchImpl)
+          : provider === 'minimax'
+            ? await fetchMiniMax(cfg.apiKey, cfg.endpoint, deps.fetchImpl)
+            : await fetchVolcengine(cfg.apiKey, cfg.secretKey ?? '', deps.fetchImpl, deps.now);
     writeCache(dir, provider, keyHash, deps.now(), data);
     return data;
   } catch {

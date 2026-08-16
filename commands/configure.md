@@ -279,11 +279,11 @@ If user chooses "Remove", set `display.customLine` to `""` in config.
 
 **官方登录检测（启用场景）**：当从"未启用"切换到"启用"时，先按 setup.md Step 4.6.0 的判定逻辑检测 Anthropic 官方 OAuth（读 `~/.claude/settings.json` env + `~/.claude.json` oauthAccount）；若判定为 OFFICIAL_OAUTH，AskUserQuestion（双语）提示："已检测到官方 coding plan（usage 段已显示官方额度），是否还要启用第三方 plancost？" → 仍启用 / 跳过。中转/API key/Bedrock 等场景不提示。
 
-1. **逐家询问**（Kimi → DeepSeek → 智谱 GLM，AskUserQuestion 双语，每家独立）：
+1. **逐家询问**（Kimi → DeepSeek → 智谱 GLM → MiniMax → 火山方舟，AskUserQuestion 双语，每家独立）：
    - EN: "Enable {provider} plancost display?" | ZH: "启用 {provider} 的 plancost 额度显示？"
    - EN: "Enter key and enable" | ZH: "填写 key 并启用"（选 Other 输入 key）；EN: "Skip" | ZH: "跳过"（保留现有 key 时用 "Keep current" 选项）
-   - key 格式：Kimi `sk-kimi-...`；DeepSeek `sk-...`；GLM `{id}.{secret}` 不含 `sk-` 前缀
-2. **模型前缀**：默认建议 Kimi `["k3","kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm","chatglm"]`，用户可 Other 输入自定义（逗号分隔）
+   - key 格式：Kimi `sk-kimi-...`；DeepSeek `sk-...`；GLM `{id}.{secret}` 不含 `sk-` 前缀；MiniMax 开放平台 API key（Bearer，国际站加 `endpoint: "https://api.minimax.io"`）；火山方舟 IAM 的 `AKLT` AccessKey + Secret（两套凭据，非推理 API key）
+2. **模型前缀**：默认建议 Kimi `["k3","kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm","chatglm"]`、MiniMax `["minimax","abab","m2"]`、火山 `["doubao","volc"]`，用户可 Other 输入自定义（逗号分隔）
 3. **显示模式**：EN: "auto（按模型）" | ZH: "auto（推荐）按当前主对话模型自动切换" / EN: "all" | ZH: "all 同时显示全部"
 4. **排布位置**：EN: "After cost (default)" | ZH: "费用之后（默认，不写 projectLineOrder）" / EN: "After model" | ZH: "模型名之后（`["model","plancost"]`）" / EN: "First" | ZH: "行首（`["plancost"]`）" / EN: "Last" | ZH: "行尾（完整 11 项顺序）"
 5. **写入 config.json**：`plancost` 块与现有键合并写入（只写用户选中的键），格式：

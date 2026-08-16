@@ -780,7 +780,7 @@ try { $hasOAuth = if ((Get-Content $claudeJsonPath -Raw | ConvertFrom-Json).oaut
 
 ### 4.6.1 逐家询问启用并收集 key
 
-对 **Kimi → DeepSeek → 智谱 GLM** 依次询问（每家独立，用 AskUserQuestion，按 `LANG_HUD` 选择语言）：
+对 **Kimi → DeepSeek → 智谱 GLM → MiniMax → 火山方舟** 依次询问（每家独立，用 AskUserQuestion，按 `LANG_HUD` 选择语言）：
 
 - header: "Provider" / "供应商"
 - question: EN: "Enable {provider} plancost display? ({key format hint})" | ZH: "启用 {provider} 的 plancost 额度显示？（{key 格式提示}）"
@@ -790,6 +790,8 @@ try { $hasOAuth = if ((Get-Content $claudeJsonPath -Raw | ConvertFrom-Json).oaut
   - Kimi：Kimi For Coding key，形如 `sk-kimi-...`，在 https://www.kimi.com/code/console 创建
   - DeepSeek：形如 `sk-...`，在 https://platform.deepseek.com/api_keys 创建
   - 智谱 GLM：形如 `{id}.{secret}`（不含 `sk-` 前缀），在 https://open.bigmodel.cn 创建
+  - MiniMax：开放平台 API key（Bearer），在 https://platform.minimaxi.com 创建；国际站用户额外填 `endpoint: "https://api.minimax.io"`
+  - 火山方舟：**两套凭据**——AccessKey ID（`AKLT` 开头）+ Secret Access Key，在火山引擎控制台 IAM（https://console.volcengine.com/iam）创建。EN/ZH 都要提示：This is the IAM account AK/SK, NOT the inference API key（这是 IAM 账号级 AK/SK，不是推理用的 API key）。火山需依次收集两个字段（两次 AskUserQuestion 或一次问 "AK SK" 逗号分隔）
 - 用户选择 "填写 key 并启用" 后，用 AskUserQuestion 收集 key 文本（用户通过 Other 输入）
 
 **安全红线（全程遵守）**：API key 只能通过文件写入 API（Write/Edit 工具 + JSON 序列化）写入 `~/.claude/plugins/claude-hud/config.json`（Windows 上为 `%USERPROFILE%\.claude\plugins\claude-hud\config.json`）。**严禁**把 key 放进 shell 命令行参数、echo 输出、settings.json 或任何命令字符串（防进程列表泄露）。写入后提醒用户 key 为明文存储。
@@ -797,7 +799,7 @@ try { $hasOAuth = if ((Get-Content $claudeJsonPath -Raw | ConvertFrom-Json).oaut
 ### 4.6.2 确认模型前缀（可跳过用默认）
 
 每家启用后，确认 `models` 前缀（AskUserQuestion，可跳过用默认）：
-- 默认建议：Kimi `["k3", "kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm", "chatglm"]`（按模型名前缀匹配，小写不敏感）
+- 默认建议：Kimi `["k3", "kimi"]`、DeepSeek `["deepseek"]`、GLM `["glm", "chatglm"]`、MiniMax `["minimax", "abab", "m2"]`、火山方舟 `["doubao", "volc"]`（按模型名前缀匹配，小写不敏感）
 - 用户可 Other 输入自定义前缀（逗号分隔）
 - 说明：EN: "Model names starting with these prefixes map to this provider (e.g. k3[1M] → Kimi, deepseek-v4-flash[1M] → DeepSeek)" | ZH: "模型名以这些前缀开头时视为该供应商（如 k3[1M] → Kimi、deepseek-v4-flash[1M] → DeepSeek）"
 
@@ -833,7 +835,9 @@ AskUserQuestion（按 `LANG_HUD` 选择语言）:
     "providers": {
       "kimi": { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
       "deepseek": { "apiKey": "sk-...", "models": ["deepseek"] },
-      "glm": { "apiKey": "id.secret", "models": ["glm", "chatglm"] }
+      "glm": { "apiKey": "id.secret", "models": ["glm", "chatglm"] },
+      "minimax": { "apiKey": "eyJ...", "models": ["minimax", "abab", "m2"], "endpoint": "https://api.minimax.io" },
+      "volcengine": { "apiKey": "AKLT...", "secretKey": "...", "models": ["doubao", "volc"] }
     }
   }
 }

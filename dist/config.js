@@ -265,7 +265,7 @@ function validateProjectLineOrder(value) {
     }
     return order;
 }
-const KNOWN_PLANCOST_PROVIDERS = new Set(['kimi', 'deepseek', 'glm']);
+const KNOWN_PLANCOST_PROVIDERS = new Set(['kimi', 'deepseek', 'glm', 'minimax', 'volcengine']);
 function validatePlancostDisplayMode(value) {
     return value === 'auto' || value === 'all';
 }
@@ -294,7 +294,14 @@ function mergePlancostProviders(raw) {
         const endpoint = typeof e.endpoint === 'string'
             ? sanitizeDisplayText(e.endpoint).trim().slice(0, 256)
             : undefined;
-        out[name] = { apiKey, models, ...(endpoint ? { endpoint } : {}) };
+        const secretKey = typeof e.secretKey === 'string'
+            ? sanitizeDisplayText(e.secretKey).trim().slice(0, 512)
+            : undefined;
+        // Volcengine signs requests with AK + SK; an entry missing the secret key
+        // cannot query anything, so it is not registered at all.
+        if (name === 'volcengine' && !secretKey)
+            continue;
+        out[name] = { apiKey, models, ...(endpoint ? { endpoint } : {}), ...(secretKey ? { secretKey } : {}) };
     }
     return out;
 }

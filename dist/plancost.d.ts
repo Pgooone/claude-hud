@@ -1,8 +1,8 @@
 import type { PlancostConfig } from './config.js';
 import type { StdinData, TranscriptData } from './types.js';
-export type PlancostProviderId = 'kimi' | 'deepseek' | 'glm';
+export type PlancostProviderId = 'kimi' | 'deepseek' | 'glm' | 'minimax' | 'volcengine';
 export interface PlancostWindow {
-    label: '5h' | 'week';
+    label: '5h' | 'week' | 'month';
     /** 0-100 percentage of the window used. */
     percent: number;
     resetAt: Date | null;
@@ -45,11 +45,35 @@ export declare function parseKimiResponse(raw: unknown): PlancostData | null;
 /** DeepSeek: account balance. total_balance is a string; currency CNY/USD. */
 export declare function parseDeepSeekResponse(raw: unknown): PlancostData | null;
 /**
+ * MiniMax coding plan: `model_remains[]` carries REMAINING percentages —
+ * invert to used. Only the "general" entry is the plan quota; the weekly
+ * bucket exists only when current_weekly_status === 1.
+ */
+export declare function parseMiniMaxResponse(raw: unknown): PlancostData | null;
+/**
+ * Volcengine Agent Plan (AFP): absolute Quota/Used windows for 5h / weekly /
+ * monthly. AFPDaily is intentionally skipped (hidden in the official console;
+ * its quota is historically above the weekly cap). Returns null when no
+ * window has Quota > 0 — the caller falls back to the Coding Plan API.
+ */
+export declare function parseVolcAfpResponse(raw: unknown): PlancostData | null;
+/** Volcengine Coding Plan: percentage-only windows keyed by Level. ResetTimestamp is SECONDS; <= 0 means no active window. */
+export declare function parseVolcCodingPlanResponse(raw: unknown): PlancostData | null;
+/**
  * GLM (Zhipu): TOKENS_LIMIT / CREDIT_LIMIT windows. unit 3 → 5h window,
  * unit 6 → weekly; other units fill the missing slots ordered by next reset
  * time. `data.level` (e.g. "lite") is surfaced as the plan level.
  */
 export declare function parseGlmResponse(raw: unknown): PlancostData | null;
+/**
+ * Sign a Volcengine ark gateway request (POST with empty body).
+ * The canonical query string is reused verbatim in the request URL — any
+ * difference between the signed and sent query breaks the signature.
+ */
+export declare function signVolcRequest(accessKey: string, secretKey: string, action: string, nowMs: number): {
+    url: string;
+    headers: Record<string, string>;
+};
 export declare function collectPlancost(config: HudConfigLike, stdin: StdinData, transcript: TranscriptData, deps?: Partial<PlancostDeps>): Promise<PlancostData[]>;
 type HudConfigLike = {
     plancost?: PlancostConfig;

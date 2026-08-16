@@ -4,6 +4,26 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.5] - 2026-08-16
+
+### Added (fork: plancost)
+- MiniMax coding-plan support: queries
+  `api.minimaxi.com/v1/api/openplatform/coding_plan/remains` (Bearer; international
+  site via `endpoint` override), inverts the remaining percentages of the
+  `general` entry into used percentages, and shows the weekly window only when
+  `current_weekly_status === 1`.
+- Volcengine Ark support: signs usage queries natively with Volcengine
+  Signature V4 (fixed header order, `HMAC-SHA256` algorithm, `request` scope,
+  AK/SK key chain), probes the Agent Plan endpoint (`GetAFPUsage`) first and
+  falls back to the Coding Plan endpoint (`GetCodingPlanUsage`); handles error
+  envelopes on HTTP 200/400. Credentials are the IAM AccessKey ID (`AKLT...`) +
+  Secret Access Key (`secretKey` in config — NOT the inference API key). The
+  monthly window renders when the plan has one.
+- New `month` plancost window label (i18n: month / 月 / 月); provider badges
+  `MM` (MiniMax) and `Volc` (Volcengine).
+- Bilingual setup/configure wizards and both READMEs updated with the two new
+  providers, credential sources, and default model prefixes.
+
 ## [0.7.4] - 2026-08-16
 
 ### Added (fork: plancost)
