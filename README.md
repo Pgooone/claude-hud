@@ -1,67 +1,56 @@
 # Claude HUD
 
-A Claude Code plugin that shows what's happening — context usage, active tools, running agents, and todo progress. Always visible below your input.
+一个 Claude Code 插件，实时显示正在发生的事情——上下文使用率、活跃工具、运行中的 Agent 和待办进度。始终在你的输入下方可见。
 
 [![License](https://img.shields.io/github/license/jarrodwatts/claude-hud?v=2)](LICENSE)
 [![Stars](https://img.shields.io/github/stars/jarrodwatts/claude-hud)](https://github.com/jarrodwatts/claude-hud/stargazers)
 
 ![Claude HUD in action](claude-hud-preview-5-2.png)
 
-> 🌐 English | [中文文档](README.zh.md)
+> 🌐 [English](README.en.md) | 中文文档（默认）
 
-## About this fork
+## 关于本 Fork
 
-This is a fork of [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud)
-(v0.7.1 baseline) focused on **third-party coding-plan visibility**. Everything
-upstream still works unchanged — this fork only adds features on top and tracks
-upstream releases. The headline feature (plancost) is also proposed upstream as
-[PR #708](https://github.com/jarrodwatts/claude-hud/pull/708); this fork stays
-installable and maintained regardless of the PR outcome.
+本 fork 基于 [jarrodwatts/claude-hud](https://github.com/jarrodwatts/claude-hud)
+（v0.7.1 基线），聚焦**第三方套餐额度的可见性**。上游的所有功能原样可用——
+本 fork 只在其上叠加新特性并跟进上游发布。核心功能（plancost）也已作为
+[PR #708](https://github.com/jarrodwatts/claude-hud/pull/708) 提交上游；无论
+PR 是否被采纳，本 fork 都会持续维护、可独立安装。
 
-### What this fork adds
+### 本 fork 新增了什么
 
-- **`plancost` statusline segment** — coding-plan usage or account balance for
-  five domestic providers, queried directly from each provider's own API:
-  **Kimi For Coding** (5h + weekly windows, plan level), **DeepSeek** (account
-  balance), **Zhipu GLM** (5h + weekly, plan level, TOKENS/CREDIT limit types,
-  CN/EN sites), **MiniMax** (5h + weekly, remaining→used inversion), and
-  **Volcengine Ark** (5h + weekly + monthly, native Volcengine Signature V4,
-  AFP→CodingPlan dual probe).
-- **Model-aware auto switching** — `displayMode: "auto"` matches the provider
-  to the model the API *actually served* (from the transcript), so users behind
-  a unified relay that mixes e.g. Kimi K3 and DeepSeek see the right quota as
-  they switch models. Subagent turns never skew the detection.
-- **Bilingual setup wizard** — `/claude-hud:setup` and `/claude-hud:configure`
-  ask their questions in English or 简体中文 following your HUD `language`
-  config, including the plancost provider/key/mode/placement wizard.
-- **Official-plan detection** — the wizard detects an Anthropic official OAuth
-  login and asks whether third-party plancost is still needed (the official
-  `rate_limits` usage is already shown by the native usage segment).
-- **Pragmatic engineering** — 5-minute per-provider disk cache keyed by a hash
-  of your credentials (swapping keys invalidates instantly), 2s request
-  timeout, stale-cache fallback, and silent degradation: provider failures
-  never break the HUD. 100+ tests including provider parsing, cache/TTL/key
-  behavior, and the signature structure.
+- **`plancost` 状态栏段**——直连五家供应商官方 API 查询套餐额度或余额：
+  **Kimi For Coding**（5h + 周窗口、套餐等级）、**DeepSeek**（账户余额）、
+  **智谱 GLM**（5h + 周、套餐等级、TOKENS/CREDIT 双类型、国内/国际站）、
+  **MiniMax**（5h + 周、剩余百分比反转）、**火山方舟**（5h + 周 + 月、原生
+  火山签名 V4、AFP→CodingPlan 双探测）。
+- **按实际模型自动切换**——`displayMode: "auto"` 依据 transcript 中 API
+  *实际服务*的模型匹配供应商：统一中转下混用 Kimi K3 / DeepSeek 的用户切模型
+  时自动看到正确的额度。subagent 回合不会干扰判定。
+- **中英双语安装向导**——`/claude-hud:setup` 与 `/claude-hud:configure` 的
+  问题按 HUD `language` 配置以英文或简体中文提问，plancost 的供应商/key/
+  显示模式/位置向导同样双语。
+- **官方套餐检测**——向导检测到 Anthropic 官方 OAuth 登录时，会询问是否
+  仍需第三方 plancost（官方 `rate_limits` 额度已由原生 usage 段显示）。
+- **务实的工程设计**——按供应商的 5 分钟磁盘缓存以凭据哈希为键（换 key
+  立即失效）、2 秒请求超时、过期缓存兜底、静默降级：任何供应商失败都不
+  影响 HUD 其余部分。100+ 测试覆盖供应商解析、缓存/TTL/key 行为与签名结构。
 
-### Who it's for
+### 适合哪些人
 
-- Users running Claude Code on a **domestic coding plan** (Kimi For Coding,
-  Zhipu GLM coding plan, MiniMax coding plan, Volcengine Ark plan) who want
-  their remaining quota in the statusline — the official `rate_limits` display
-  only covers Anthropic subscriber logins.
-- Users on a **unified relay / proxy** (`ANTHROPIC_BASE_URL`) that routes to
-  different providers — auto mode shows the quota of whichever model is
-  actually serving the session.
-- **Pay-as-you-go API users** (e.g. DeepSeek) who want the account balance
-  (`💰 DS ¥xx.xx`) instead of quota windows.
-- **Chinese-speaking users** — bilingual wizard plus a full
-  [中文文档](README.zh.md).
-- Anyone who wants official + third-party quotas side by side on official
-  accounts.
+- 用**国产 coding plan**（Kimi For Coding、智谱 GLM、MiniMax、火山方舟）
+  跑 Claude Code、想把剩余额度放进状态栏的用户——官方 `rate_limits` 显示
+  只覆盖 Anthropic 订阅登录。
+- 走**统一中转/代理**（`ANTHROPIC_BASE_URL`）接入多家供应商的用户——auto
+  模式显示当前实际服务会话的那家额度。
+- **按量付费 API 用户**（如 DeepSeek）——显示账户余额（`💰 DS ¥xx.xx`）
+  而非套餐窗口。
+- **中文用户**——双语向导 + 完整中文文档（本文件）。
+- 官方账号上想**官方 + 第三方额度并存**的用户。
 
-### Fork install
+### Fork 安装
 
-Inside a Claude Code instance:
+在 Claude Code 实例中：
 
 ```
 /plugin marketplace add Pgooone/claude-hud
@@ -69,39 +58,39 @@ Inside a Claude Code instance:
 /reload-plugins
 ```
 
-Then configure the statusline with `/claude-hud:setup` (Step 4 offers the
-"Plancost 额度显示" wizard). Or outside a session:
+然后通过 `/claude-hud:setup` 配置状态栏（Step 4 提供 "Plancost 额度显示" 向导）。
+也可以在会话外使用 CLI：
 
 ```bash
 claude plugin marketplace add Pgooone/claude-hud
 claude plugin install claude-hud@claude-hud
 ```
 
-## Install (upstream)
+## 安装（上游）
 
-Inside a Claude Code instance, run the following commands:
+在 Claude Code 实例中，运行以下命令：
 
-**Step 1: Add the marketplace**
+**步骤 1：添加市场**
 ```
 /plugin marketplace add jarrodwatts/claude-hud
 ```
 
-**Step 2: Install the plugin**
+**步骤 2：安装插件**
 
 <details>
-<summary><strong>⚠️ Linux users: Click here if install fails with an EXDEV error</strong></summary>
+<summary><strong>⚠️ Linux 用户：如果安装报 EXDEV 错误，请点击此处</strong></summary>
 
-On older Claude Code versions, `/tmp` being a separate filesystem (tmpfs) caused plugin installation to fail with:
+在较旧的 Claude Code 版本上，`/tmp` 作为独立文件系统（tmpfs）会导致插件安装失败并报错：
 ```
 EXDEV: cross-device link not permitted
 ```
 
-This [Claude Code bug](https://github.com/anthropics/claude-code/issues/14799) has since been fixed — if you hit it, update Claude Code first. If you can't update, set TMPDIR before installing:
+这个 [Claude Code 缺陷](https://github.com/anthropics/claude-code/issues/14799)已经修复——如果遇到此错误，请先升级 Claude Code。如果无法升级，可在安装前设置 TMPDIR：
 ```bash
 mkdir -p ~/.cache/tmp && TMPDIR=~/.cache/tmp claude
 ```
 
-Then run the install command below in that session.
+然后在该会话中运行下面的安装命令。
 
 </details>
 
@@ -109,235 +98,222 @@ Then run the install command below in that session.
 /plugin install claude-hud
 ```
 
-After that, reload plugins (no restart needed):
+安装完成后，重新加载插件（无需重启）：
 
 ```
 /reload-plugins
 ```
 
 <details>
-<summary><strong>Prefer the terminal?</strong></summary>
+<summary><strong>更喜欢在终端操作？</strong></summary>
 
-Steps 1–2 can also be done outside a session with the Claude Code CLI:
+步骤 1–2 也可以在会话之外用 Claude Code CLI 完成：
 ```bash
 claude plugin marketplace add jarrodwatts/claude-hud
 claude plugin install claude-hud@claude-hud
 ```
-Then run `/reload-plugins` inside your session (or start a new one).
+然后在会话内运行 `/reload-plugins`（或开启新会话）。
 
 </details>
 
-**Step 3: Configure the statusline**
+**步骤 3：配置状态栏**
 ```
 /claude-hud:setup
 ```
 
 <details>
-<summary><strong>⚠️ Windows users: Click here if setup says no JavaScript runtime was found</strong></summary>
+<summary><strong>⚠️ Windows 用户：如果 setup 提示未找到 JavaScript 运行时，请点击此处</strong></summary>
 
-On Windows, Node.js LTS is the supported runtime for Claude HUD setup. If setup says no JavaScript runtime was found, install Node.js for your shell first:
+在 Windows 上，Claude HUD setup 支持的运行时是 Node.js LTS。如果 setup 提示未找到 JavaScript 运行时，请先为你的 shell 安装 Node.js：
 ```powershell
 winget install OpenJS.NodeJS.LTS
 ```
-Then restart your shell and run `/claude-hud:setup` again.
+然后重启 shell 并再次运行 `/claude-hud:setup`。
 
 </details>
 
-Done! Claude Code reloads settings automatically — the HUD appears after your next message, no restart needed. If it doesn't show up, restart Claude Code (older versions require a restart to pick up statusLine changes).
+完成！Claude Code 会自动重新加载设置——发送下一条消息后 HUD 就会出现，无需重启。如果没有显示，请重启 Claude Code（旧版 Claude Code 需要重启才能加载 statusLine 变更）。
 
 ---
 
-## What is Claude HUD?
+## 什么是 Claude HUD？
 
-Claude HUD gives you better insights into what's happening in your Claude Code session.
+Claude HUD 让你在 Claude Code 会话中获得更清晰的洞察。
 
-| What You See | Why It Matters |
-|--------------|----------------|
-| **Project path** | Know which project you're in (configurable 1-3 directory levels) |
-| **Context health** | Know exactly how full your context window is before it's too late |
-| **Tool activity** | Watch Claude read, edit, and search files as it happens |
-| **Agent tracking** | See which subagents are running and what they're doing |
-| **Todo progress** | Track task completion in real-time |
+| 你看到的内容 | 为什么重要 |
+|--------------|------------|
+| **项目路径** | 知道你当前在哪个项目中（可配置 1-3 级目录深度） |
+| **上下文健康度** | 在上下文窗口满之前准确了解还剩多少 |
+| **工具活动** | 实时观察 Claude 读取、编辑和搜索文件 |
+| **Agent 追踪** | 查看哪些子 Agent 正在运行以及它们在做什么 |
+| **待办进度** | 实时跟踪任务完成情况 |
 
-## What You See
+## 显示效果
 
-### Default (2 lines)
+### 默认（2 行）
 ```
 [Opus] │ my-project git:(main*)
-Context █████░░░░░ 45% │ Usage ██░░░░░░░░ 25% (1h 30m / 5h)
+上下文 █████░░░░░ 45% │ 使用率 ██░░░░░░░░ 25%（1小时30分 / 5小时）
 ```
-- **Line 1** — Model, provider label when positively identified (for example `Bedrock`, `Vertex`, `MiniMax`), project path, git branch
-- **Line 2** — Context bar (green → yellow → red) and usage rate limits
+- **第 1 行** — 模型、提供商标签（如能正面识别，例如 `Bedrock`、`Vertex`、`MiniMax`）、项目路径、git 分支
+- **第 2 行** — 上下文进度条（绿 → 黄 → 红）和使用率限制
 
-### Optional lines (enable via `/claude-hud:configure`)
+### 可选行（通过 `/claude-hud:configure` 启用）
 ```
-◐ Edit: auth.ts | ✓ Read ×3 | ✓ Grep ×2        ← Tools activity
-◐ explore [haiku]: Finding auth code (2m 15s)    ← Agent status
-▸ Fix authentication bug (2/5)                   ← Todo progress
+◐ Edit: auth.ts | ✓ Read ×3 | ✓ Grep ×2        ← 工具活动
+◐ explore [haiku]: 查找认证代码（2分15秒）       ← Agent 状态
+▸ 修复认证漏洞（2/5）                             ← 待办进度
 ```
 
 ---
 
-## How It Works
+## 工作原理
 
-Claude HUD uses Claude Code's native **statusline API** — no separate window, no tmux required, works in any terminal.
+Claude HUD 使用 Claude Code 原生的 **statusline API**——无需独立窗口，不需要 tmux，在任何终端都能工作。
 
 ```
-Claude Code → stdin JSON → claude-hud → stdout → displayed in your terminal
-           ↘ transcript JSONL (tools, agents, todos)
+Claude Code → stdin JSON → claude-hud → stdout → 在终端中显示
+           ↘ transcript JSONL（工具、Agent、待办）
 ```
 
-**Key features:**
-- Native token data from Claude Code (not estimated)
-- Scales with Claude Code's reported context window size, including newer 1M-context sessions
-- Parses the transcript for tool/agent activity
-- Re-renders after each interaction (new assistant messages, `/compact`, permission changes, vim-mode toggles), debounced at 300ms
+**核心特性：**
+- 来自 Claude Code 的原生 Token 数据（非估算）
+- 适配 Claude Code 报告的上下文窗口大小，包括最新的 1M 上下文会话
+- 解析转录文件以获取工具/Agent 活动
+- 在每次交互后重新渲染（新的助手消息、`/compact`、权限变更、vim 模式切换），带 300ms 防抖
 
 ---
 
-## Configuration
+## 配置
 
-Customize your HUD anytime:
+随时自定义你的 HUD：
 
 ```
 /claude-hud:configure
 ```
 
-The guided flow handles layout, language, and common display toggles. Advanced overrides such as
-custom colors and thresholds are preserved there, but you set them by editing the config file directly:
+引导式配置涵盖布局、语言和常用显示开关。高级选项如自定义颜色和阈值仍然保留，但你需要直接编辑配置文件来设置它们：
 
-- **First time setup**: Choose a preset (Full/Essential/Minimal), pick a label language, then fine-tune individual elements
-- **Customize anytime**: Toggle items on/off, adjust git display style, switch layouts, or change label language
-- **Preview before saving**: See exactly how your HUD will look before committing changes
+- **首次设置**：选择预设（完整/核心/极简），选择标签语言，然后微调各个元素
+- **随时自定义**：开关各项、调整 Git 显示样式、切换布局或更改标签语言
+- **保存前预览**：在提交更改前精确预览 HUD 的效果
 
-### Presets
+### 预设
 
-| Preset | What's Shown |
-|--------|--------------|
-| **Full** | Everything enabled — tools, agents, todos, git, usage, duration |
-| **Essential** | Activity lines + git status, minimal info clutter |
-| **Minimal** | Core only — just model name and context bar |
+| 预设 | 显示内容 |
+|------|----------|
+| **完整（Full）** | 全部启用——工具、Agent、待办、Git、使用率、时长 |
+| **核心（Essential）** | 活动行 + Git 状态，减少信息冗余 |
+| **极简（Minimal）** | 仅核心——只有模型名称和上下文进度条 |
 
-After choosing a preset, you can turn individual elements on or off.
+选择预设后，你可以单独开启或关闭各个元素。
 
-### Manual Configuration
+### 手动配置
 
-Edit `~/.claude/plugins/claude-hud/config.json` directly for advanced settings such as `colors.*`,
-`pathLevels`, `maxWidth`, threshold overrides, `display.timeFormat`, and `display.promptCacheTtlSeconds`. Running `/claude-hud:configure`
-preserves those manual settings while still letting you change `language`, layout, and the common
-guided toggles.
+直接编辑 `~/.claude/plugins/claude-hud/config.json` 来配置高级选项，如 `colors.*`、`pathLevels`、`maxWidth`、阈值覆盖、`display.timeFormat` 以及 `display.promptCacheTtlSeconds`。运行 `/claude-hud:configure` 时会保留这些手动设置，同时你仍可更改 `language`、布局和常用引导式开关。
 
-Simplified and Traditional Chinese HUD labels are available as explicit opt-ins. English stays the default unless you choose a Chinese locale in `/claude-hud:configure` or set `language` in config. The `zh` alias maps to Simplified Chinese, and `zh-TW` maps to Traditional Chinese. Guided config writes the canonical `zh-Hans` or `zh-Hant` value.
+简体与繁体中文 HUD 标签均为显式 opt-in 选项。除非你在 `/claude-hud:configure` 中选择中文语言或在配置中设置 `language`，否则默认使用英文。`zh` 别名对应简体中文，`zh-TW` 对应繁体中文；引导式配置会写入规范值 `zh-Hans` 或 `zh-Hant`。
 
-### Options
+### 选项
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `language` | `en` \| `zh` \| `zh-Hans` \| `zh-Hant` \| `zh-TW` | `en` | HUD label language. Use `zh` or `zh-Hans` for Simplified Chinese and `zh-Hant` or `zh-TW` for Traditional Chinese. |
-| `lineLayout` | string | `expanded` | Layout: `expanded` (multi-line) or `compact` (single line) |
-| `pathLevels` | 1-3 \| `full` | 1 | Directory levels to show in project path, or `full` to show the entire absolute path |
-| `maxWidth` | number \| `null` | `null` | Optional fallback width used only when terminal width detection fails completely |
-| `forceMaxWidth` | boolean | false | Always use `maxWidth` when it is set, even if terminal width detection returns a smaller value |
-| `elementOrder` | string[] | `["project","addedDirs","context","usage","promptCache","memory","environment","tools","skills","mcp","agents","todos","sessionTime"]` | Expanded-mode element order. Omit entries to hide them in expanded mode. Existing configs keep their explicit order until updated. |
-| `projectLineOrder` | string[] | `[]` | Optional leading order of segments *within* the first line, in both layouts. Visibility stays with the `display.show*` flags, and omitted segments retain their existing renderer order. `model` covers provider + model + effort (plus the context bar in compact mode); `project` covers path + added dirs + git as one segment. Example: `["project","model"]` puts the project/git block before the model badge. |
-| `display.mergeGroups` | string[][] | `[["context","usage"]]` | Expanded-mode groups that should share a line when adjacent. Set `[]` to disable merged lines. |
-| `display.rightAlign` | string[] | `[]` | Starts a right-aligned suffix at the first listed element in a merged row, preserving `elementOrder` and padding the gap with spaces. Requires the anchor to be in a `display.mergeGroups` group that actually renders on one line. Ignored when the terminal width is unknown, the anchor is first, or there is no room for padding. Example: `["context"]` with a `["project","context","usage"]` group keeps project/git left and pins context + usage right. |
-| `gitStatus.enabled` | boolean | true | Show git branch in HUD |
-| `gitStatus.showDirty` | boolean | true | Show `*` for uncommitted changes |
-| `gitStatus.showAheadBehind` | boolean | false | Show `↑N ↓N` for ahead/behind remote |
-| `gitStatus.pushWarningThreshold` | number | 0 | Color the ahead count with the warning color at or above this unpushed-commit count (`0` disables it) |
-| `gitStatus.pushCriticalThreshold` | number | 0 | Color the ahead count with the critical color at or above this unpushed-commit count (`0` disables it) |
-| `gitStatus.showFileStats` | boolean | false | Show file change counts `!M +A ✘D ?U` |
-| `gitStatus.branchOverflow` | `truncate` \| `wrap` | `truncate` | Keep current truncation behavior or let the git block wrap onto its own line boundary when possible |
-| `jjStatus.enabled` | boolean | false | Opt in to jj (Jujutsu) status. When enabled and a real `.jj` directory is found, jj is used instead of git for that repo — never both |
-| `jjStatus.showDirty` | boolean | true | Show `*` when the working-copy commit differs from its parent |
-| `jjStatus.showConflicts` | boolean | true | Show a `!conflict` marker when the working-copy commit has an unresolved conflict |
-| `display.showModel` | boolean | true | Show model name `[Opus]` |
-| `display.modelSource` | `stdin` \| `auto` \| `transcript` | `stdin` | Controls which source the model name comes from. `stdin` preserves the default behavior and always uses what Claude Code reports. `auto` opts into proxy redirect detection by using transcript models only for non-Claude models. `transcript` always uses the model from the API response. Transcript model values are terminal-sanitized and capped at 80 characters |
-| `display.showProvider` | boolean | false | Show the provider label *before* the model name, e.g. `[Bedrock \| Opus 4.6]`. Useful when a custom proxy serves identically-named models from different providers. When off, an auto-detected provider still trails the model as before |
-| `display.providerName` | string | `""` | Explicit provider label used with `display.showProvider`, e.g. for a custom proxy that can't be auto-detected. Falls back to the auto-detected provider (Bedrock/Vertex/MiniMax/Enterprise) when empty; capped at 40 chars |
-| `display.showAddedDirs` | boolean | true | Show extra workspace directories from `/add-dir` (e.g. `+sparkle +lib-foo`); empty array renders nothing. In both layouts at most 5 dirs render (overflow shown as `+N more`) and basenames are truncated to 24 chars with `…` |
-| `display.addedDirsLayout` | `inline` \| `line` | `inline` | `inline` puts dirs next to the project name with a `+name` prefix per dir; `line` renders them on a separate `Added dirs: name1, name2` line (no `+` prefix, comma-separated) |
-| `display.showContextBar` | boolean | true | Show visual context bar `████░░░░░░` |
-| `display.contextValue` | `percent` \| `tokens` \| `remaining` \| `both` | `percent` | Context display format (`45%`, `45k/200k`, `55%` remaining, or `45% (45k/200k)`) |
-| `display.autoCompactWindow` | number \| `null` | `null` | When set to a positive number such as `200000`, compute the context percentage against this auto-compact window instead of the full model context window, matching the `/context` figure. Leave unset or `null` to preserve default full-window behavior. |
-| `display.showConfigCounts` | boolean | false | Show CLAUDE.md, rules, MCPs, hooks counts |
-| `display.showCost` | boolean | false | Show session cost using Claude Code's native `cost.total_cost_usd` when available, with a local estimate fallback for direct Anthropic sessions |
-| `display.showRoutedCost` | boolean | false | Also show cost for routed providers (Bedrock/Vertex), which `showCost` hides by default. Requires `showCost` too. Uses the native `cost.total_cost_usd` when positive (`Cost`), otherwise the token estimate (`Est.`) |
-| `display.showOutputStyle` | boolean | false | Show the active Claude Code `outputStyle` from settings files as `style: <name>` |
-| `display.showDuration` | boolean | false | Show session duration `⏱️ 5m` |
-| `display.showSpeed` | boolean | false | Show output token speed `out: 42.1 tok/s` |
-| `display.showUsage` | boolean | true | Show Claude subscriber usage limits when available |
-| `display.usageValue` | `percent` \| `remaining` | `percent` | Usage display format (`25%` used, or `75%` remaining) |
-| `display.usageBarEnabled` | boolean | true | Display usage as visual bar instead of text |
-| `display.usageCompact` | boolean | false | Display usage in a shorter text form such as `5h: 25% (1h 30m)`; takes precedence over `display.usageBarEnabled` |
-| `display.showResetLabel` | boolean | true | Show the `resets in` prefix before usage countdowns |
-| `display.timeFormat` | `relative` \| `absolute` \| `both` \| `elapsed` \| `elapsedAndAbsolute` | `relative` | How usage-window time is shown: countdown only (`resets in 2h 30m`), wall-clock reset (`resets at 14:30`), both, elapsed window percentage (`53% elapsed`), or elapsed plus wall-clock reset |
-| `display.hourCycle` | `auto` \| `h11` \| `h12` \| `h23` \| `h24` | `auto` | Hour cycle for wall-clock reset times (`absolute`/`both`/`elapsedAndAbsolute` modes). `auto` defers to the system locale; `h23` forces 24-hour time (`14:30`) regardless of locale |
-| `display.showClockSeconds` | boolean | false | Show seconds in wall-clock reset times, e.g. `at 14:30:07` |
-| `display.sevenDayThreshold` | 0-100 | 80 | Show 7-day usage when >= threshold (0 = always) |
-| `display.externalUsagePath` | string | `""` | Optional absolute path to a local usage snapshot file. Relative paths are ignored. When stdin `rate_limits` are present, `balance_label` is appended and `model_scoped` windows fill in when stdin lacks them; when stdin windows are missing, valid usage windows can be used as a fallback |
-| `display.externalUsageWritePath` | string | `""` | Optional absolute `.json` path in an existing directory. When stdin `rate_limits` exists, ClaudeHUD writes a private snapshot for other local tools. Relative paths, non-json files, and missing parent directories are ignored |
-| `display.externalUsageFreshnessMs` | number | `300000` | Maximum allowed age for the external usage snapshot before it is ignored |
-| `display.showTokenBreakdown` | boolean | true | Show token details at high context (85%+) |
-| `display.showTools` | boolean | false | Show tools activity line |
-| `display.showSkills` | boolean | false | Show active Skills detected from `Skill` tool invocations |
-| `display.showMcp` | boolean | false | Show active MCP servers detected from `mcp__server__tool` invocations |
-| `display.toolNameMaxLength` | number | `0` | Maximum displayed tool-name length. `0` keeps full names; MCP names may shorten to their final segment when truncating |
-| `display.toolsMaxVisible` | number | `4` | Maximum completed tools shown on the tools line. `0` means unlimited |
-| `display.showAgents` | boolean | false | Show agents activity line |
-| `display.showTodos` | boolean | false | Show todos progress line |
-| `display.showSessionName` | boolean | false | Show session slug or custom title from `/rename` |
-| `display.showAuth` | boolean | false | Show the auth method (subscription plan) of the current login as its own segment at the end of the first line, e.g. `Claude Max 20x`. Derived from the `oauthAccount` block in `{CLAUDE_CONFIG_DIR}.json`; shows `API Key` when there is no OAuth login but `ANTHROPIC_API_KEY` is set |
-| `display.showAuthUser` | boolean | false | Show the logged-in account (email local part, falling back to profile display name) next to the auth method |
-| `display.authUserLength` | number | `8` | Maximum characters of the account name to display before truncating with `…`. `0` shows the full name |
-| `display.showAdvisor` | boolean | false | Inline the model configured via Claude Code's `/advisor` on the project line, e.g. `Advisor: Opus 4.7`. Read from the `advisorModel` field that Claude Code stamps on each assistant transcript record; sanitised and capped at 64 chars before rendering |
-| `display.advisorOverride` | string | `""` | Optional manual override for the displayed advisor label. When non-empty, replaces transcript-driven detection. Also sanitised and capped at 64 chars |
-| `display.showSessionStartDate` | boolean | false | Show the transcript session start timestamp |
-| `display.showLastResponseAt` | boolean | false | Show how long ago the last assistant response was written |
-| `display.showCompactions` | boolean | false | Show how many context compactions (manual `/compact` or auto) have occurred this session, counted from transcript `compact_boundary` entries, e.g. `Compactions: 2`. Hidden until the first compaction |
-| `display.showEffortLevel` | boolean | false | Show the current reasoning effort in the model badge. Ultracode renders as `ultracode(xhigh)`, detected from the session transcript so it tracks `/effort` changes made at runtime |
-| `display.showClaudeCodeVersion` | boolean | false | Show the installed Claude Code version, e.g. `CC v2.1.81` |
-| `display.showMemoryUsage` | boolean | false | Show an approximate system RAM usage line in expanded layout |
-| `display.showPromptCache` | boolean | false | Show a prompt cache countdown based on the last assistant response timestamp in the transcript |
-| `display.promptCacheTtlSeconds` | number | `300` | Prompt cache TTL in seconds. Keep the default for Pro, set `3600` for Max |
-| `colors.context` | color value | `green` | Base color for the context bar and context percentage |
-| `colors.usage` | color value | `brightBlue` | Base color for usage bars and percentages below warning thresholds |
-| `colors.warning` | color value | `yellow` | Warning color for context thresholds and usage warning text |
-| `colors.usageWarning` | color value | `brightMagenta` | Warning color for usage bars and percentages near their threshold |
-| `colors.critical` | color value | `red` | Critical color for limit-reached states and critical thresholds |
-| `colors.model` | color value | `cyan` | Color for the model badge such as `[Opus]` |
-| `colors.project` | color value | `yellow` | Color for the project path |
-| `colors.git` | color value | `magenta` | Color for git wrapper text such as `git:(` and `)` |
-| `colors.gitBranch` | color value | `cyan` | Color for the git branch and branch status text |
-| `colors.label` | color value | `dim` | Color for labels and secondary metadata such as `Context`, `Usage`, counts, and progress text |
-| `colors.custom` | color value | `208` | Color for the optional custom line |
-| `colors.barFilled` | string | `█` | Character used for the filled portion of progress bars |
-| `colors.barEmpty` | string | `░` | Character used for the empty portion of progress bars |
+| 选项 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `language` | `en` \| `zh` \| `zh-Hans` \| `zh-Hant` \| `zh-TW` | `en` | HUD 标签语言。设为 `zh` 或 `zh-Hans` 启用简体中文，设为 `zh-Hant` 或 `zh-TW` 启用繁体中文 |
+| `lineLayout` | string | `expanded` | 布局：`expanded`（多行）或 `compact`（单行） |
+| `pathLevels` | 1-3 \| `full` | 1 | 项目路径显示的目录层级数，或设为 `full` 显示完整绝对路径 |
+| `maxWidth` | number \| `null` | `null` | 可选的回退宽度，仅在终端宽度检测完全失败时使用 |
+| `forceMaxWidth` | boolean | false | 当设置了 `maxWidth` 时始终使用它，即使终端宽度检测返回更小的值 |
+| `elementOrder` | string[] | `["project","context","usage","promptCache","memory","environment","tools","agents","todos","sessionTime"]` | 展开模式下元素的顺序。省略的条目在展开模式下隐藏。现有配置会保留其显式顺序直到更新 |
+| `projectLineOrder` | string[] | `[]` | 可选的首行片段前置顺序，适用于两种布局。可见性仍由 `display.show*` 控制；省略的片段保持渲染器原有顺序。例如 `["project","model"]` 会将项目和 Git 放到模型徽标之前 |
+| `display.mergeGroups` | string[][] | `[["context","usage"]]` | 展开模式下相邻时应共享一行的元素分组。设为 `[]` 可禁用合并行 |
+| `display.rightAlign` | string[] | `[]` | 以合并行中第一个列出的元素作为右对齐后缀的起点，保持 `elementOrder` 并用空格填充间隔。锚点必须位于实际合并渲染的 `display.mergeGroups` 分组中。终端宽度未知、锚点位于首位或空间不足时回退到普通的 ` │ ` 连接。示例：分组为 `["project","context","usage"]` 时设为 `["context"]`，项目/git 保持在左侧，context 与 usage 靠右对齐。 |
+| `gitStatus.enabled` | boolean | true | 在 HUD 中显示 git 分支 |
+| `gitStatus.showDirty` | boolean | true | 显示 `*` 表示未提交的更改 |
+| `gitStatus.showAheadBehind` | boolean | false | 显示 `↑N ↓N` 表示领先/落后远程的提交数 |
+| `gitStatus.pushWarningThreshold` | number | 0 | 当未推送提交数达到此值时，用警告色显示 ahead 计数（`0` 表示禁用） |
+| `gitStatus.pushCriticalThreshold` | number | 0 | 当未推送提交数达到此值时，用严重色显示 ahead 计数（`0` 表示禁用） |
+| `gitStatus.showFileStats` | boolean | false | 显示文件变更数量 `!M +A ✘D ?U` |
+| `gitStatus.branchOverflow` | `truncate` \| `wrap` | `truncate` | 保持当前截断行为，或在可能时让 git 块以自己的换行边界单独换到下一行 |
+| `jjStatus.enabled` | boolean | false | 显式启用 jj（Jujutsu）状态。启用后若找到真实的 `.jj` 目录，该仓库将显示 jj 而不是 git，二者不会同时运行 |
+| `jjStatus.showDirty` | boolean | true | 当 jj 工作副本提交与其父提交不同时显示 `*` |
+| `jjStatus.showConflicts` | boolean | true | 当 jj 工作副本提交包含未解决冲突时显示 `!conflict` |
+| `display.showModel` | boolean | true | 显示模型名称 `[Opus]` |
+| `display.modelSource` | `stdin` \| `auto` \| `transcript` | `stdin` | 控制模型名称来源。`stdin` 保持默认行为；`auto` 仅在 transcript 返回非 Claude 模型时切换，用于检测代理路由；`transcript` 始终使用 API 响应中的模型。Transcript 模型值会清理终端转义字符并截断为 80 个字符 |
+| `display.showAddedDirs` | boolean | true | 显示来自 `/add-dir` 的额外工作区目录（如 `+sparkle +lib-foo`）；空数组不显示任何内容。在两种布局中最多渲染 5 个目录（溢出显示为 `+N more`），基名截断为 24 个字符并加 `…` |
+| `display.addedDirsLayout` | `inline` \| `line` | `inline` | `inline` 将目录放在项目名称旁边，每个目录带 `+name` 前缀；`line` 在单独的 `Added dirs: name1, name2` 行渲染（无 `+` 前缀，逗号分隔） |
+| `display.showContextBar` | boolean | true | 显示可视化上下文进度条 `████░░░░░░` |
+| `display.contextValue` | `percent` \| `tokens` \| `remaining` \| `both` | `percent` | 上下文显示格式（`45%`、`45k/200k`、剩余 `55%` 或 `45% (45k/200k)`） |
+| `display.showConfigCounts` | boolean | false | 显示 CLAUDE.md、rules、MCPs、hooks 数量 |
+| `display.showCost` | boolean | false | 使用 Claude Code 原生提供的 `cost.total_cost_usd` 显示会话费用（可用时），并附带本地估算回退方案 |
+| `display.showRoutedCost` | boolean | false | 同时为路由提供商（Bedrock/Vertex）显示费用，`showCost` 默认将其隐藏。需同时开启 `showCost`。原生 `cost.total_cost_usd` 为正值时使用它（`Cost`），否则用 token 估算（`Est.`） |
+| `display.showOutputStyle` | boolean | false | 从配置文件显示当前 Claude Code `outputStyle`，格式为 `style: <名称>` |
+| `display.showDuration` | boolean | false | 显示会话时长 `⏱️ 5m` |
+| `display.showSpeed` | boolean | false | 显示输出 Token 速度 `out: 42.1 tok/s` |
+| `display.showUsage` | boolean | true | 显示 Claude 订阅用户的使用率限制（可用时） |
+| `display.usageValue` | `percent` \| `remaining` | `percent` | 使用率显示格式（已使用 `25%`，或剩余 `75%`） |
+| `display.usageBarEnabled` | boolean | true | 将使用率显示为可视化进度条而非文本 |
+| `display.usageCompact` | boolean | false | 以较短的文本形式显示使用率，如 `5h: 25% (1h 30m)`；优先于 `display.usageBarEnabled` |
+| `display.showResetLabel` | boolean | true | 在使用率倒计时前显示 `resets in` 前缀 |
+| `display.timeFormat` | `relative` \| `absolute` \| `both` \| `elapsed` \| `elapsedAndAbsolute` | `relative` | 控制使用率窗口时间的显示方式：仅倒计时（`resets in 2h 30m`）、墙钟重置时间（`resets at 14:30`）、两者同时显示、窗口已过百分比（`53% elapsed`），或已过百分比加墙钟重置时间 |
+| `display.hourCycle` | `auto` \| `h11` \| `h12` \| `h23` \| `h24` | `auto` | 墙钟重置时间（`absolute`/`both`/`elapsedAndAbsolute` 模式）的时制。`auto` 跟随系统区域设置；`h23` 强制使用 24 小时制（`14:30`），不受区域设置影响 |
+| `display.showClockSeconds` | boolean | false | 在墙钟重置时间中显示秒数，如 `at 14:30:07` |
+| `display.sevenDayThreshold` | 0-100 | 80 | 当 7 天使用率 ≥ 阈值时显示（0 = 始终显示） |
+| `display.externalUsagePath` | string | `""` | 可选的本地使用率快照文件路径。stdin `rate_limits` 存在时会附加 `balance_label`，并在 stdin 缺少 `model_scoped` 窗口时用快照补齐；stdin 窗口缺失时可整体作为回退 |
+| `display.externalUsageWritePath` | string | `""` | 可选的绝对 `.json` 路径，父目录必须已存在。当 stdin `rate_limits` 存在时，ClaudeHUD 会写入私有权限快照供其他本地工具读取。相对路径、非 json 文件和缺失父目录会被忽略 |
+| `display.externalUsageFreshnessMs` | number | `300000` | 外部使用率快照允许的最长存活时间，超时后会被忽略 |
+| `display.showTokenBreakdown` | boolean | true | 在高上下文时（85%+）显示 Token 详情 |
+| `display.showTools` | boolean | false | 显示工具活动行 |
+| `display.toolNameMaxLength` | number | `0` | 工具名称最大显示长度。`0` 保留完整名称；截断 MCP 名称时可能缩短为最后一段 |
+| `display.toolsMaxVisible` | number | `4` | 工具行最多显示的已完成工具数。`0` 表示不限制 |
+| `display.showAgents` | boolean | false | 显示 Agent 活动行 |
+| `display.showTodos` | boolean | false | 显示待办进度行 |
+| `display.showSessionName` | boolean | false | 显示会话 slug 或 `/rename` 设置的自定义标题 |
+| `display.showAdvisor` | boolean | false | 在 project 行内联显示 Claude Code `/advisor` 配置的顾问模型，例如 `Advisor: Opus 4.7`。来自 Claude Code 写入每条 assistant transcript 记录的 `advisorModel` 字段；渲染前会做控制字符/双向标记/ANSI 过滤并截断到 64 字符 |
+| `display.advisorOverride` | string | `""` | 手动覆盖顾问显示文本。非空时优先于 transcript 检测，同样会做过滤和截断 |
+| `display.showSessionStartDate` | boolean | false | 显示 transcript 会话开始时间戳 |
+| `display.showLastResponseAt` | boolean | false | 显示最后一次 assistant 响应写入的时间距现在多久 |
+| `display.showCompactions` | boolean | false | 显示本会话已发生的上下文压缩次数（手动 `/compact` 或自动压缩），从 transcript 的 `compact_boundary` 记录计数，例如 `压缩次数: 2`。第一次压缩前不显示 |
+| `display.showClaudeCodeVersion` | boolean | false | 显示已安装的 Claude Code 版本，如 `CC v2.1.81` |
+| `display.showMemoryUsage` | boolean | false | 在展开布局中显示近似系统 RAM 使用行 |
+| `display.showPromptCache` | boolean | false | 根据 transcript 中最后一次 assistant 响应时间显示 prompt cache 倒计时 |
+| `display.promptCacheTtlSeconds` | number | `300` | Prompt cache TTL 秒数。Pro 保持默认值，Max 可设为 `3600` |
+| `colors.context` | 颜色值 | `green` | 上下文进度条和百分比的基础颜色 |
+| `colors.usage` | 颜色值 | `brightBlue` | 使用率进度条和低于警告阈值时百分比的颜色 |
+| `colors.warning` | 颜色值 | `yellow` | 上下文阈值和使用率警告文本的警告颜色 |
+| `colors.usageWarning` | 颜色值 | `brightMagenta` | 使用率进度条和接近阈值时百分比的警告颜色 |
+| `colors.critical` | 颜色值 | `red` | 达到限制状态和严重阈值的颜色 |
+| `colors.model` | 颜色值 | `cyan` | 模型徽章颜色，如 `[Opus]` |
+| `colors.project` | 颜色值 | `yellow` | 项目路径的颜色 |
+| `colors.git` | 颜色值 | `magenta` | Git 包装文本的颜色，如 `git:(` 和 `)` |
+| `colors.gitBranch` | 颜色值 | `cyan` | Git 分支和分支状态文本的颜色 |
+| `colors.label` | 颜色值 | `dim` | 标签和次要元数据的颜色，如 `Context`、`Usage`、计数和进度文本 |
+| `colors.custom` | 颜色值 | `208` | 可选自定义行的颜色 |
+| `colors.barFilled` | string | `█` | 进度条填充部分使用的字符 |
+| `colors.barEmpty` | string | `░` | 进度条空白部分使用的字符 |
 
-`colors.barFilled` and `colors.barEmpty` accept a single visible grapheme. Control characters, invisible format characters (bidi controls, zero-width joiners, variation selectors), line/paragraph separators, and noncharacters are rejected. Wide characters (emoji, CJK) may affect bar alignment depending on the terminal.
+`colors.barFilled` 和 `colors.barEmpty` 接受单个可见字素。控制字符、不可见格式字符（双向控制符、零宽连接符、变体选择符）、行/段落分隔符和非字符会被拒绝。宽字符（emoji、CJK）可能会影响进度条对齐，具体取决于终端。
 
-Supported color names: `dim`, `red`, `green`, `yellow`, `magenta`, `cyan`, `brightBlue`, `brightMagenta`. You can also use a 256-color number (`0-255`) or hex (`#rrggbb`).
+支持的颜色名称：`dim`、`red`、`green`、`yellow`、`magenta`、`cyan`、`brightBlue`、`brightMagenta`。你也可以使用 256 色数字（`0-255`）或十六进制（`#rrggbb`）。
 
-`display.showMemoryUsage` is fully opt-in and only renders in `expanded` layout. It reports approximate system RAM usage from the local machine, not precise memory pressure inside Claude Code or a specific process. The number may overstate actual pressure because reclaimable OS cache and buffers can still be counted as used memory.
+`display.showMemoryUsage` 为完全 opt-in 选项，仅在 `expanded` 布局下渲染。它报告本地机器的近似系统 RAM 使用情况，而非 Claude Code 或特定进程内的精确内存压力。由于可回收的 OS 缓存缓冲区仍可能被计入已用内存，该数字可能高估实际压力。
 
-`display.showCost` is fully opt-in. ClaudeHUD prefers the native `cost.total_cost_usd` field that Claude Code provides on stdin when it is available. If that field is absent or invalid for a direct Anthropic session, ClaudeHUD falls back to the existing local transcript-based estimate so the cost line still works on older payloads. The native field is absent before the first API response in a session, so the cost display may stay hidden until then. ClaudeHUD also keeps the cost hidden for known routed providers such as Bedrock and Vertex AI, because cloud-provider billed sessions may report `$0.00` or omit the field even though the session was not literally free. Set `display.showRoutedCost: true` (alongside `showCost`) to opt into cost for those providers anyway: the native `cost.total_cost_usd` is shown as `Cost` when positive, otherwise ClaudeHUD falls back to a token-based `Est.` from the Anthropic pricing table.
+`display.showCost` 为完全 opt-in 选项。ClaudeHUD 优先使用 Claude Code 在 stdin 上提供的原生 `cost.total_cost_usd` 字段（可用时）。如果该字段缺失或对直连 Anthropic 会话无效，ClaudeHUD 会回退到现有的基于本地转录文件的估算方案，确保费用行在旧负载下仍能工作。原生字段在会话中首个 API 响应之前为空，因此费用显示可能在响应到达前保持隐藏。对于已知的路由提供商（如 Bedrock、Vertex AI），ClaudeHUD 也会隐藏费用显示，因为云提供商计费会话可能报告 `$0.00` 或省略该字段，即使会话并非真正免费。设置 `display.showRoutedCost: true`（并同时开启 `showCost`）即可为这些提供商启用费用显示：原生 `cost.total_cost_usd` 为正值时显示为 `Cost`，否则回退到基于 Anthropic 定价表的 token 估算 `Est.`。
 
-Official MiniMax Anthropic-compatible endpoints receive a `MiniMax` provider label. MiniMax M2.7 can use its published token and cache prices for local estimates; M3 pricing depends on each request's context tier, which cumulative session tokens cannot safely infer, so ClaudeHUD does not guess an M3 estimate.
+官方 MiniMax Anthropic 兼容端点会显示 `MiniMax` 提供商标签。MiniMax M2.7 可使用其公开 token 和缓存价格进行本地估算；M3 的价格取决于单次请求的上下文层级，而累计会话 token 无法安全推断该层级，因此不会猜测 M3 费用。
 
-`display.showPromptCache` is fully opt-in. When enabled, ClaudeHUD looks at the timestamp of the last assistant response in the local transcript and shows a live countdown until the prompt cache expires. The default TTL is 5 minutes (`300` seconds). Set `display.promptCacheTtlSeconds` to `3600` if you want a 1-hour Max-style window. If the transcript does not have an assistant timestamp yet, the cache element stays hidden.
+`display.showPromptCache` 为完全 opt-in 选项。启用后，ClaudeHUD 会读取本地 transcript 中最后一次 assistant 响应的时间戳，并显示距离 prompt cache 过期还剩多久。默认 TTL 为 5 分钟（`300` 秒）。如果你想按 1 小时的 Max 风格窗口显示，可将 `display.promptCacheTtlSeconds` 设为 `3600`。如果 transcript 里还没有 assistant 时间戳，这个元素会继续隐藏。
 
-### Usage Limits
+### 使用率限制
 
-Usage display is **enabled by default** when Claude Code provides subscriber `rate_limits` data on stdin. It shows your rate limit consumption on line 2 alongside the context bar.
+当 Claude Code 在 stdin 上提供订阅用户 `rate_limits` 数据时，使用率显示**默认启用**。它会在第 2 行与上下文进度条一起显示你的使用率消耗。
 
-Set `display.usageValue` to `remaining` to show quota left instead of quota used. Warning colors and 7-day threshold checks still use the underlying used percentage.
+将 `display.usageValue` 设为 `remaining` 可显示剩余配额而非已使用配额。警告颜色和 7 天阈值检查仍使用底层的已使用百分比。
 
-ClaudeHUD prefers the official statusline stdin payload for rate-limit windows. If `display.externalUsagePath` points to a fresh local sidecar snapshot, ClaudeHUD can append its `balance_label` alongside stdin windows. If stdin `rate_limits` are missing, the same snapshot can provide fallback usage windows.
+ClaudeHUD 优先使用官方 statusline stdin 负载中的使用率数据。如果 `rate_limits` 缺失，你可以通过 `display.externalUsagePath` 显式启用本地 sidecar 快照回退，例如让代理程序写入 JSON 文件。只要 stdin 和 sidecar 同时存在，stdin 始终优先。
 
-The fallback snapshot path must be absolute. The snapshot must be fresh enough (`display.externalUsageFreshnessMs`) and include valid `updated_at`, plus a `five_hour` window, `seven_day` window, `balance_label`, or `model_scoped` array. `balance_label` is optional text for prepaid provider balances; it is trimmed, length-limited, and sanitized before display. Relative paths, invalid JSON, stale files, or invalid timestamps are ignored quietly.
+回退快照必须足够新（由 `display.externalUsageFreshnessMs` 控制），并且包含有效的 `updated_at`、以及 `five_hour` 窗口、`seven_day` 窗口、`balance_label` 或 `model_scoped` 数组。`balance_label` 是预付费提供商余额的可选文本；显示前会进行裁剪、长度限制和清理。非法 JSON、过期文件或非法时间戳都会被静默忽略。
 
-The snapshot may also carry `model_scoped` windows using the same shape Claude Code defines for stdin (`display_name`, `utilization` on the 0-100 scale, ISO `resets_at`). They render exactly like stdin scoped windows (see the model-scoped usage section) and stdin always wins when it carries its own `model_scoped` data. This lets a local feeder surface per-model weekly quotas (e.g. Fable) that the statusline payload does not include yet:
+快照还可以携带 `model_scoped` 窗口，格式与 Claude Code 为 stdin 定义的 schema 相同（`display_name`、0-100 的 `utilization`、ISO 格式 `resets_at`），渲染方式与 stdin 提供的按模型窗口完全一致，且 stdin 自带 `model_scoped` 数据时始终优先。借此本地喂送程序可以显示 statusline 负载暂未包含的按模型每周配额（例如 Fable）：
 
 ```json
 {
@@ -348,163 +324,44 @@ The snapshot may also carry `model_scoped` windows using the same shape Claude C
 }
 ```
 
-One zero-credential way to produce such a snapshot is Claude Code's own `get_usage` control request, which returns `rate_limits.model_scoped` without spending tokens; a scheduled job can pipe it through `jq` into the snapshot file. The HUD itself never fetches anything: it only reads the file.
+生成此类快照的一种零凭证方式是 Claude Code 自带的 `get_usage` 控制请求：它会返回 `rate_limits.model_scoped` 且不消耗任何 token，定时任务可将其经 `jq` 写入快照文件。HUD 本身从不发起任何请求，只读取该文件。
 
-Set `display.externalUsageWritePath` if you want ClaudeHUD to write the official stdin `rate_limits` into a local snapshot for other tools. The path must be absolute, end in `.json`, and live in an existing directory. ClaudeHUD writes the file with private permissions and ignores invalid paths quietly.
+如果希望 ClaudeHUD 将官方 stdin `rate_limits` 写入本地快照供其他工具使用，可设置 `display.externalUsageWritePath`。该路径必须为绝对路径、以 `.json` 结尾，并位于已存在的目录中。ClaudeHUD 会使用私有权限写入该文件，并静默忽略无效路径。
 
-Free/weekly-only accounts render the weekly window by itself instead of showing a ghost `5h: --` placeholder.
+免费/仅限每周账户会单独显示每周窗口，而不是显示幽灵 `5h: --` 占位符。
 
-The 7-day percentage appears when above the `display.sevenDayThreshold` (default 80%):
-
-```
-Context █████░░░░░ 45% │ Usage ██░░░░░░░░ 25% (1h 30m / 5h) | ██████████ 85% (2d / 7d)
-```
-
-To disable, set `display.showUsage` to `false`.
-
-Reset times use relative countdowns by default. Set `display.timeFormat` to `absolute` for wall-clock
-times, `both` to show both forms, `elapsed` to show how far through each usage window you are, or
-`elapsedAndAbsolute` to show elapsed window progress plus the wall-clock reset time. This setting is
-manual-only today; `/claude-hud:configure` preserves it without editing it.
-
-Wall-clock reset times (`absolute`/`both`/`elapsedAndAbsolute`) default to your system locale for 12-
-vs 24-hour formatting. Set `display.hourCycle` to `h23` to force 24-hour time regardless of locale, or
-to `h12`/`h11` to force 12-hour time with AM/PM. Set `display.showClockSeconds` to `true` to include
-seconds in the wall-clock time, e.g. `at 14:30:07`.
-
-Set `display.showResetLabel` to `false` if you want shorter usage countdowns such as `(3h 17m)` instead of `(resets in 3h 17m)`.
-
-Set `display.usageCompact` to `true` if you want the shorter usage-only form, for example `5h: 25% (1h 30m)`. Compact usage takes precedence over `display.usageBarEnabled`.
-
-### Plancost (third-party model providers)
-
-A `plancost` first-line segment shows **coding-plan usage or account balance
-for third-party model providers**, queried directly from the provider
-APIs (Kimi For Coding, DeepSeek, Zhipu GLM, MiniMax, Volcengine Ark). It is
-**disabled by default** — you must opt in and fill in API keys. This
-complements the official `rate_limits` display (which requires an Anthropic
-subscriber login and is unavailable to API-key / proxy users) and the external
-usage snapshot path: plancost fetches provider data itself instead of reading
-a sidecar file.
+当 7 天使用率超过 `display.sevenDayThreshold`（默认 80%）时会显示：
 
 ```
-🟡 Kimi(advanced) 5h 15% (03:44) · week 69% (08/13)   ← Kimi coding plan (5h + weekly)
-🟢 GLM(lite) 5h 21% (09:47) · week 4% (08/21)          ← GLM plan (token or credit plan)
-💰 DS ¥40.96                                           ← DeepSeek account balance
+上下文 █████░░░░░ 45% │ 使用率 ██░░░░░░░░ 25%（1小时30分 / 5小时）| ██████████ 85%（2天 / 7天）
 ```
 
-Health markers: 🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85% (worst window wins).
-DeepSeek shows balance only. The parenthesized suffix is the plan level
-reported by the provider (Kimi membership `LEVEL_*` → `advanced`, GLM
-`data.level` → `lite`); it is omitted when the provider reports none. The
-HUD strips ANSI from external data, so the emoji carry the color signal.
+如需禁用，请将 `display.showUsage` 设为 `false`。
 
-#### Configuration
+重置时间默认显示为相对倒计时。将 `display.timeFormat` 设为 `absolute` 可显示墙钟时间，设为 `both` 可同时显示两种形式，设为 `elapsed` 可显示当前使用率窗口已过百分比，设为 `elapsedAndAbsolute` 可同时显示已过百分比和墙钟重置时间。该设置目前只能手动编辑；`/claude-hud:configure` 会保留它，但不会修改它。
 
-```jsonc
-// ~/.claude/plugins/claude-hud/config.json
-{
-  "plancost": {
-    "enabled": true,
-    "displayMode": "auto",        // "auto" | "all"
-    "providers": {
-      "kimi":       { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
-      "deepseek":   { "apiKey": "sk-...",      "models": ["deepseek"] },
-      "glm":        { "apiKey": "id.secret",   "models": ["glm", "chatglm"] },
-      "minimax":    { "apiKey": "eyJ...",      "models": ["minimax", "abab", "m2"],
-                      "endpoint": "https://api.minimax.io" },   // EN site only; CN default
-      "volcengine": { "apiKey": "AKLT...", "secretKey": "...", "models": ["doubao", "volc"] }
-    }
-  }
-}
-```
+墙钟重置时间（`absolute`/`both`/`elapsedAndAbsolute`）默认跟随系统区域设置决定 12/24 小时制。将 `display.hourCycle` 设为 `h23` 可强制使用 24 小时制，不受区域设置影响；设为 `h12`/`h11` 可强制使用带 AM/PM 的 12 小时制。将 `display.showClockSeconds` 设为 `true` 可在墙钟时间中显示秒数，如 `at 14:30:07`。
 
-- **`enabled`**: master switch. `false` means zero network calls.
-- **`displayMode`**:
-  - `auto` (default): show only the provider whose `models` prefix matches
-    the **actual served model** (transcript `message.model`, stdin model as
-    fallback before the first assistant message). Subagent turns never
-    override the main-session model.
-  - `all`: show every provider that has a non-empty `apiKey`, in config
-    key order.
-- **`providers`**: keys are fixed (`kimi` / `deepseek` / `glm` / `minimax` /
-  `volcengine`); unknown keys are dropped. `models` are case-insensitive name
-  prefixes (e.g. `k3` matches `k3[1M]` and `k3-256`). `endpoint` overrides the
-  API base (GLM international `https://api.z.ai`; MiniMax international
-  `https://api.minimax.io`).
+将 `display.showResetLabel` 设为 `false` 可使用较短的使用率倒计时格式，如 `(3h 17m)` 而非 `(resets in 3h 17m)`。
 
-Where each key comes from:
-- **Kimi For Coding**: `sk-kimi-...`, create at https://www.kimi.com/code/console
-- **DeepSeek**: `sk-...`, create at https://platform.deepseek.com/api_keys
-- **Zhipu GLM**: `{id}.{secret}` (no `sk-` prefix), create at
-  https://open.bigmodel.cn
-- **MiniMax**: platform API key (Bearer), create at
-  https://platform.minimaxi.com (international: https://www.minimax.io + endpoint override)
-- **Volcengine Ark**: the IAM **AccessKey ID (`AKLT...`) + Secret Access Key**
-  pair from https://console.volcengine.com/iam — these are account-level
-  signing credentials, **not** the inference API key. Usage queries are
-  signed with Volcengine Signature V4 (implemented natively); the Agent Plan
-  (AFP) endpoint is probed first and falls back to the Coding Plan endpoint
-  automatically. Volcengine windows include a monthly quota when present.
+将 `display.usageCompact` 设为 `true` 可使用更短的使用率格式，如 `5h: 25% (1h 30m)`。紧凑模式优先于 `display.usageBarEnabled`。
 
-#### Position on the line
+**前提条件：**
+- Claude Code 必须在当前会话的 stdin 上包含订阅用户 `rate_limits` 数据
+- 不适用于仅使用 API 密钥的用户
 
-The segment renders after the cost segment by default. Reorder it with
-`projectLineOrder`, e.g. right after the model badge:
+**故障排查：** 如果使用率不显示：
+- 确保你已使用 Claude 订阅账户登录（而非 API 密钥）
+- 检查配置中的 `display.showUsage` 未设为 `false`
+- API 用户看不到使用率显示（他们按 Token 付费，没有使用率限制）
+- AWS Bedrock 模型显示 `Bedrock` 并隐藏使用率限制（使用率由 AWS 管理）
+- Bedrock 和 Vertex AI 模型默认隐藏费用估算（计费与 Anthropic 直连不同）；可通过 `display.showRoutedCost` 启用
+- Claude Code 可能在会话中首个模型响应之前将 `rate_limits` 留空
+- 某些 Claude Code 构建版本和订阅层级即使在首个响应之后仍可能省略 `rate_limits`
+- 如果你配置了 `display.externalUsagePath`，ClaudeHUD 会先尝试读取该本地快照，再决定是否隐藏使用率
+- ClaudeHUD 不会回退到凭据抓取或未记录的 API 调用
 
-```jsonc
-{ "projectLineOrder": ["model", "plancost"] }
-```
-
-#### How it works
-
-- Queries: Kimi `GET api.kimi.com/coding/v1/usages` (Bearer); DeepSeek
-  `GET api.deepseek.com/user/balance` (Bearer); GLM
-  `GET {endpoint}/api/monitor/usage/quota/limit` (**bare key, no Bearer** —
-  a Bearer prefix fails GLM auth); MiniMax
-  `GET api.minimaxi.com/v1/api/openplatform/coding_plan/remains` (Bearer,
-  remaining percentages inverted to used); Volcengine Ark
-  `POST open.volcengineapi.com` (`GetAFPUsage` → `GetCodingPlanUsage` fallback,
-  Volcengine Signature V4 with the AK/SK pair, error envelopes on HTTP 200/400
-  handled). GLM accepts both `TOKENS_LIMIT` and
-  `CREDIT_LIMIT` windows (credit-plan keys report the latter) and surfaces
-  `data.level` as the plan level; Kimi surfaces its membership level.
-- Caching: one file per provider under
-  `~/.claude/plugins/claude-hud/plancost-cache/`, 5-minute TTL, keyed by a
-  hash of the apiKey — swapping keys invalidates old data immediately.
-- Degradation: fresh cache → request (2s timeout) → stale cache for the same
-  key → segment hidden. Failures never break the HUD.
-- The `/claude-hud:setup` Step 4 and `/claude-hud:configure` Q7 wizards guide
-  through enabling providers, entering keys, display mode, and placement.
-  When an Anthropic official OAuth login is detected, the wizard asks whether
-  you still want third-party plancost (the official `rate_limits` usage is
-  already shown). Keys are written to `config.json` as plain text — do not
-  share that file.
-
-### Security Notes
-
-ClaudeHUD is local-only by design. It does not make network requests, scrape credentials, or call undocumented Claude APIs. It reads the statusline JSON from stdin, the current session transcript path supplied by Claude Code, selected Claude configuration files under `~/.claude`, and git metadata for the current workspace.
-
-HUD cache files are written under `~/.claude/plugins/claude-hud` with private permissions on POSIX filesystems. The cache stores derived display metadata such as context percentages, token counters, activity names, and the resolved Claude Code version.
-
-`--extra-cmd` is disabled unless `CLAUDE_HUD_ALLOW_EXTRA_CMD=1` (or `true`, `yes`, `on`) is present in the HUD process environment. Treat this option as arbitrary code execution: it runs the supplied shell command with your user privileges on statusline refreshes. Do not use commands copied from untrusted sources.
-
-**Requirements:**
-- Claude Code must include subscriber `rate_limits` data on stdin for the current session
-- Not available for API-key-only users
-
-**Troubleshooting:** If usage doesn't appear:
-- Ensure you're logged in with a Claude subscriber account (not API key)
-- Check `display.showUsage` is not set to `false` in config
-- API users see no usage display (they have pay-per-token, not rate limits)
-- AWS Bedrock models display `Bedrock` and hide usage limits (usage is managed in AWS)
-- Bedrock and Vertex AI models hide cost estimates by default (billing differs from Anthropic direct); opt in with `display.showRoutedCost`
-- Claude Code may leave `rate_limits` empty until after the first model response in a session
-- Some Claude Code builds and subscription tiers may still omit `rate_limits`, even after the first response
-- If you configured `display.externalUsagePath`, ClaudeHUD will try that local snapshot before hiding usage
-- ClaudeHUD never falls back to credential scraping or undocumented API calls
-
-Example fallback snapshot:
+回退快照示例：
 
 ```json
 {
@@ -520,14 +377,106 @@ Example fallback snapshot:
 }
 ```
 
-### Example Configuration
+### Plancost（第三方模型供应商）— fork 新增
+
+`plancost` 第一行段显示**第三方模型供应商的套餐额度或余额**，直接调用
+各家供应商 API 查询（Kimi For Coding、DeepSeek、智谱 GLM、MiniMax、火山方舟）。
+**默认关闭**——需要手动启用并填写 API key。它与官方 `rate_limits` 显示（要求
+Anthropic 订阅登录，API key / 中转用户拿不到）及外部 usage 快照路径互为补充：
+plancost 自行抓取供应商数据，无需维护 sidecar 文件。
+
+```
+🟡 Kimi(advanced) 5h 15% (03:44) · week 69% (08/13)   ← Kimi coding plan（5h + 周额度）
+🟢 GLM(lite) 5h 21% (09:47) · week 4% (08/21)          ← GLM 套餐（token / 信用套餐）
+💰 DS ¥40.96                                           ← DeepSeek 账户余额
+```
+
+健康度标记：🟢 < 60% / 🟡 60–84% / 🔴 ≥ 85%（取最差窗口）。DeepSeek 只显示
+余额。括号中的后缀是供应商返回的套餐等级（Kimi 会员等级 `LEVEL_*` →
+`advanced`、GLM `data.level` → `lite`），供应商不返回时不显示。HUD 会剥离
+外部数据的 ANSI 色码，因此用 emoji 承担颜色信号。
+
+#### 配置
+
+```jsonc
+// ~/.claude/plugins/claude-hud/config.json
+{
+  "plancost": {
+    "enabled": true,
+    "displayMode": "auto",        // "auto" | "all"
+    "providers": {
+      "kimi":       { "apiKey": "sk-kimi-...", "models": ["k3", "kimi"] },
+      "deepseek":   { "apiKey": "sk-...",      "models": ["deepseek"] },
+      "glm":        { "apiKey": "id.secret",   "models": ["glm", "chatglm"] },
+      "minimax":    { "apiKey": "eyJ...",      "models": ["minimax", "abab", "m2"],
+                      "endpoint": "https://api.minimax.io" },   // 仅国际站需要，国内默认
+      "volcengine": { "apiKey": "AKLT...", "secretKey": "...", "models": ["doubao", "volc"] }
+    }
+  }
+}
+```
+
+- **`enabled`**：总开关。`false` 时零网络请求。
+- **`displayMode`**：
+  - `auto`（默认）：只显示 `models` 前缀匹配**实际服务模型**（transcript
+    `message.model`，首个 assistant 消息前回退到 stdin 模型）的供应商。
+    subagent 的回合不会覆盖主会话模型。
+  - `all`：显示所有配置了非空 `apiKey` 的供应商，按配置键顺序。
+- **`providers`**：键固定为 `kimi` / `deepseek` / `glm` / `minimax` /
+  `volcengine`，未知键会被丢弃。`models` 是不区分大小写的模型名前缀
+  （如 `k3` 匹配 `k3[1M]` 和 `k3-256`）。`endpoint` 覆盖 API 基址
+  （GLM 国际站 `https://api.z.ai`；MiniMax 国际站 `https://api.minimax.io`）。
+
+各 key 的获取位置：
+- **Kimi For Coding**：`sk-kimi-...`，在 https://www.kimi.com/code/console 创建
+- **DeepSeek**：`sk-...`，在 https://platform.deepseek.com/api_keys 创建
+- **智谱 GLM**：`{id}.{secret}`（不含 `sk-` 前缀），在 https://open.bigmodel.cn 创建
+- **MiniMax**：开放平台 API key（Bearer），在 https://platform.minimaxi.com 创建
+  （国际站 https://www.minimax.io，需同时配置 endpoint 覆盖）
+- **火山方舟**：火山引擎控制台 IAM 的 **AccessKey ID（`AKLT` 开头）+ Secret
+  Access Key**（https://console.volcengine.com/iam）——这是账号级签名凭据，
+  **不是**推理用的 API key。用量查询使用火山签名 V4（原生实现，无需 CLI）；
+  先探测 Agent Plan（AFP）接口，未订阅时自动回落 Coding Plan 接口；
+  火山窗口在套餐有月额度时会显示 `month` 窗口。
+
+#### 位置排布
+
+该段默认在费用（cost）段之后渲染。可通过 `projectLineOrder` 重排，例如
+紧跟模型徽章之后：
+
+```jsonc
+{ "projectLineOrder": ["model", "plancost"] }
+```
+
+#### 工作原理
+
+- 查询：Kimi `GET api.kimi.com/coding/v1/usages`（Bearer）；DeepSeek
+  `GET api.deepseek.com/user/balance`（Bearer）；GLM
+  `GET {endpoint}/api/monitor/usage/quota/limit`（**裸 key，不加 Bearer**——
+  加了 Bearer 会导致 GLM 认证失败）；MiniMax
+  `GET api.minimaxi.com/v1/api/openplatform/coding_plan/remains`（Bearer，
+  剩余百分比反转为已用）；火山方舟 `POST open.volcengineapi.com`
+  （`GetAFPUsage` → 未订阅回落 `GetCodingPlanUsage`，火山签名 V4 + AK/SK，
+  兼容 HTTP 200/400 上的 ResponseMetadata.Error 业务错误信封）。GLM 同时接受 `TOKENS_LIMIT` 与
+  `CREDIT_LIMIT` 窗口（信用套餐 key 返回后者），并将 `data.level` 作为
+  套餐等级显示；Kimi 显示其会员等级。
+- 缓存：`~/.claude/plugins/claude-hud/plancost-cache/` 下每个供应商一个文件，
+  5 分钟 TTL，以 apiKey 的哈希作为键——更换 key 会立即让旧缓存失效。
+- 降级：新鲜缓存 → 请求（2 秒超时）→ 同 key 的过期缓存 → 隐藏该段。
+  任何失败都不会影响 HUD 其余部分。
+- `/claude-hud:setup` Step 4 和 `/claude-hud:configure` Q7 向导会引导启用
+  供应商、填写 key、选择显示模式和位置。检测到 Anthropic 官方 OAuth 登录时，
+  向导会询问是否仍要启用第三方 plancost（官方 `rate_limits` 额度已显示）。
+  key 以明文写入 `config.json`——请勿分享该文件。
+
+### 配置示例
 
 ```json
 {
   "language": "zh",
   "lineLayout": "expanded",
   "pathLevels": 2,
-  "elementOrder": ["project", "tools", "skills", "mcp", "context", "usage", "memory", "environment", "agents", "todos", "sessionTime"],
+  "elementOrder": ["project", "tools", "context", "usage", "memory", "environment", "agents", "todos", "sessionTime"],
   "projectLineOrder": ["project", "model"],
   "gitStatus": {
     "enabled": true,
@@ -542,8 +491,6 @@ Example fallback snapshot:
   },
   "display": {
     "showTools": true,
-    "showSkills": true,
-    "showMcp": true,
     "showAgents": true,
     "showTodos": true,
     "showConfigCounts": true,
@@ -566,52 +513,37 @@ Example fallback snapshot:
 }
 ```
 
-### Display Examples
+### 显示示例
 
-**1 level (default):** `[Opus] │ my-project git:(main)`
+**1 级（默认）：** `[Opus] │ my-project git:(main)`
 
-**2 levels:** `[Opus] │ apps/my-project git:(main)`
+**2 级：** `[Opus] │ apps/my-project git:(main)`
 
-**3 levels:** `[Opus] │ dev/apps/my-project git:(main)`
+**3 级：** `[Opus] │ dev/apps/my-project git:(main)`
 
-**With dirty indicator:** `[Opus] │ my-project git:(main*)`
+**带脏状态指示器：** `[Opus] │ my-project git:(main*)`
 
-**With ahead/behind:** `[Opus] │ my-project git:(main ↑2 ↓1)`
+**带领先/落后：** `[Opus] │ my-project git:(main ↑2 ↓1)`
 
-**With file stats:** `[Opus] │ my-project git:(main* !3 +1 ?2)`
-- `!` = modified files, `+` = added/staged, `✘` = deleted, `?` = untracked
-- Counts of 0 are omitted for cleaner display
+**带文件统计：** `[Opus] │ my-project git:(main* !3 +1 ?2)`
+- `!` = 修改的文件，`+` = 新增/暂存，`✘` = 删除，`?` = 未跟踪
+- 计数为 0 的项会被省略，以保持显示整洁
 
-### Jujutsu (jj) support
+### Jujutsu（jj）支持
 
-Set `jjStatus.enabled` to `true` to opt in. When a real `.jj` directory is found
-in (or above) the working directory, the HUD shows jj-native status instead of
-git — the two are mutually exclusive per invocation, even in a colocated jj+git
-repo. If jj cannot be queried safely, a colocated repository falls back to its
-existing git status.
+将 `jjStatus.enabled` 设为 `true` 即可显式启用。启用后，如果在工作目录
+或其父目录找到真实的 `.jj` 目录，HUD 会显示 jj 原生状态；即使 jj 与 git
+共存，每次调用也只会选择其中一个。如果无法安全读取 jj，共存仓库会回退
+到原有的 git 状态。
 
-**With a bookmark:** `[Opus] │ my-project jj:(mybookmark)`
+HUD 以适合提示符的只读方式运行 jj：禁用 pager、忽略实时工作副本，并从
+当前 operation 读取状态，避免状态栏刷新时快照文件或修改仓库。因此，脏状态
+标记反映的是 jj 最近一次工作副本快照；在另一条 jj 命令记录新更改之前，
+它可能暂时滞后。
 
-**Anonymous change (no bookmark at `@`):** `[Opus] │ my-project jj:(wrulwzyw)`
+### 自动刷新
 
-**Dirty working copy:** `[Opus] │ my-project jj:(mybookmark*)`
-
-**Unresolved conflict:** `[Opus] │ my-project jj:(mybookmark !conflict)`
-
-Ahead/behind counts and per-file change stats are git-only in this version —
-jj's equivalent requires more expensive revset queries against
-`remote_bookmarks()`, so they're left out to keep the jj status fetch to a
-single subprocess call.
-
-The HUD runs jj in prompt-safe, read-only mode: it disables the pager, ignores
-the live working copy, and reads the current operation without reconciling it.
-That avoids snapshotting files or mutating repository state during statusline
-refreshes. As a result, the dirty marker reflects jj's most recent working-copy
-snapshot and can remain stale until another jj command records new changes.
-
-### Auto-Refresh
-
-Claude Code only re-runs the statusline after an interaction (a new assistant message, `/compact` finishing, a permission-mode change, or a vim-mode toggle), so time-based HUD info — session duration, usage reset countdowns, the prompt-cache countdown — goes stale between messages. To keep it ticking, add `refreshInterval` (seconds, minimum 1) to the `statusLine` entry in `~/.claude/settings.json`:
+Claude Code 只在交互之后（新的助手消息、`/compact` 完成、权限模式变更、vim 模式切换）才会重新运行状态栏，因此与时间相关的 HUD 信息——会话时长、使用量重置倒计时、提示词缓存倒计时——在消息之间会停止更新。要让它们持续跳动，可以在 `~/.claude/settings.json` 的 `statusLine` 条目中添加 `refreshInterval`（秒，最小值 1）：
 
 ```json
 {
@@ -623,54 +555,54 @@ Claude Code only re-runs the statusline after an interaction (a new assistant me
 }
 ```
 
-`/claude-hud:setup` offers this during installation. Each refresh re-runs the HUD command, so 5 seconds is a good default; use 1 second only if you want visibly smooth countdowns.
+`/claude-hud:setup` 会在安装时提供此选项。每次刷新都会重新运行 HUD 命令，因此推荐 5 秒；只有在需要平滑倒计时时才用 1 秒。
 
-### Disabling the HUD Temporarily
+### 临时关闭 HUD
 
-Set the `CLAUDE_HUD_DISABLE` environment variable to launch a session without the HUD — no need to remove the `statusLine` entry from `settings.json`:
+设置环境变量 `CLAUDE_HUD_DISABLE`，即可在本次会话中关闭 HUD，无需从 `settings.json` 中移除 `statusLine` 配置：
 
 ```bash
 CLAUDE_HUD_DISABLE=1 claude
 ```
 
-Leaving it unset (or setting an explicit negative: `0`, `false`, `off`, `no`) keeps the HUD enabled. When disabled, the HUD exits immediately without reading the transcript or running git, so the statusline simply stays empty for that session.
+不设置（或设为明确的否定值：`0`、`false`、`off`、`no`）则保持 HUD 启用。关闭时 HUD 会立即退出，不读取会话记录、不执行 git 操作，状态栏在该会话中保持为空。
 
-### Troubleshooting
+### 故障排查
 
-**Config not applying?**
-- Check for JSON syntax errors: invalid JSON silently falls back to defaults
-- Ensure valid values: `pathLevels` must be 1, 2, 3, or `full`; `lineLayout` must be `expanded` or `compact`; `maxWidth` must be a positive number
-- Delete config and run `/claude-hud:configure` to regenerate
+**配置不生效？**
+- 检查 JSON 语法错误：无效的 JSON 会静默回退到默认值
+- 确保值有效：`pathLevels` 必须是 1、2、3 或 `full`；`lineLayout` 必须是 `expanded` 或 `compact`；`maxWidth` 必须是正数
+- 删除配置文件并运行 `/claude-hud:configure` 重新生成
 
-**Git status missing?**
-- Verify you're in a git repository
-- Check `gitStatus.enabled` is not `false` in config
+**Git 状态缺失？**
+- 验证你是否在 git 仓库中
+- 检查配置中的 `gitStatus.enabled` 不为 `false`
 
-**jj status missing, or seeing `git:(...)` in a jj repo?**
-- Verify a `.jj` directory exists at or above the working directory
-- Set `jjStatus.enabled` to `true` in config (jj support is opt-in)
-- Verify the `jj` binary is installed and on `PATH`
+**jj 状态缺失，或 jj 仓库中仍显示 `git:(...)`？**
+- 验证工作目录或其父目录存在 `.jj` 目录
+- 在配置中将 `jjStatus.enabled` 设为 `true`（jj 支持默认不启用）
+- 验证 `jj` 可执行文件已安装并位于 `PATH` 中
 
-**Tool/skill/MCP/agent/todo lines missing?**
-- These are hidden by default — enable with `showTools`, `showSkills`, `showMcp`, `showAgents`, `showTodos` in config
-- They also only appear when there's activity to show
+**工具/Agent/待办行缺失？**
+- 这些默认隐藏——在配置中通过 `showTools`、`showAgents`、`showTodos` 启用
+- 它们也仅在有活动可显示时才会出现
 
-**HUD not appearing after setup?**
-- Send any message — settings reload automatically, but the statusline only renders after your next interaction
-- If it still doesn't appear, restart Claude Code (fully quit and run `claude` again) — older Claude Code versions require a restart to pick up statusLine changes
-- Make sure `CLAUDE_HUD_DISABLE` is not set in your environment (e.g. exported from a shell profile) — it silences the HUD entirely, including setup verification
+**HUD 设置后不显示？**
+- 发送任意一条消息——设置会自动重新加载，但状态栏只在下一次交互后才会渲染
+- 如果仍未出现，重启 Claude Code（完全退出并在终端中再次运行 `claude`）——旧版 Claude Code 需要重启才能加载 statusLine 变更
+- 确认环境中没有设置 `CLAUDE_HUD_DISABLE`（例如从 shell 配置文件中导出）——它会让 HUD 完全静默，包括安装验证
 
 ---
 
-## Requirements
+## 运行环境要求
 
 - Claude Code v1.0.80+
-- macOS/Linux: Node.js 18+ or Bun
-- Windows: Node.js 18+
+- macOS/Linux：Node.js 18+ 或 Bun
+- Windows：Node.js 18+
 
 ---
 
-## Development
+## 开发
 
 ```bash
 git clone https://github.com/jarrodwatts/claude-hud
@@ -679,16 +611,16 @@ npm ci && npm run build
 npm test
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ---
 
-## License
+## 许可证
 
-MIT — see [LICENSE](LICENSE)
+MIT — 详见 [LICENSE](LICENSE)
 
 ---
 
-## Star History
+## Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=jarrodwatts/claude-hud&type=Date)](https://star-history.com/#jarrodwatts/claude-hud&Date)
