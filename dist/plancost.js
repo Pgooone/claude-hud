@@ -80,7 +80,12 @@ function windowFrom(o, label) {
     const limit = Number(o.limit);
     if (!(limit > 0))
         return null;
-    const used = Number(o.used);
+    // Kimi's 5h window (limits[].detail) carries `used`; the weekly quota
+    // (`usage`) sometimes only carries `remaining` — derive used = limit - remaining
+    // when the direct field is absent (cc-switch does the same).
+    const used = o.used !== undefined && o.used !== null
+        ? Number(o.used)
+        : limit - Number(o.remaining);
     if (!Number.isFinite(used) || used < 0)
         return null;
     return { label, percent: clampPercent((used / limit) * 100), resetAt: parseDate(o.resetTime) };

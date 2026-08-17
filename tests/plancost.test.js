@@ -546,3 +546,18 @@ test('mergeConfig accepts minimax provider with endpoint override', () => {
   });
   assert.equal(cfg.plancost.providers.minimax.endpoint, 'https://api.minimax.io');
 });
+
+test('parseKimiResponse derives weekly used from remaining when used is absent', () => {
+  // Kimi's usage object sometimes omits `used` and only carries remaining.
+  const raw = {
+    limits: [{ detail: { limit: '100', used: '1', remaining: '99', resetTime: '2026-08-17T12:17:14Z' } }],
+    usage: { limit: '100', remaining: '40', resetTime: '2026-08-24T09:17:14Z' },
+  };
+  const d = parseKimiResponse(raw);
+  assert.ok(d);
+  assert.equal(d.windows.length, 2);
+  assert.equal(d.windows[0].label, '5h');
+  assert.equal(d.windows[0].percent, 1);
+  assert.equal(d.windows[1].label, 'week');
+  assert.equal(d.windows[1].percent, 60); // 100 - 40 remaining
+});

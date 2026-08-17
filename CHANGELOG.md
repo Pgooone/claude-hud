@@ -4,6 +4,14 @@ All notable changes to Claude HUD will be documented in this file.
 
 ## [Unreleased]
 
+## [0.7.6] - 2026-08-17
+
+### Fixed
+- Kimi weekly quota silently disappeared: the provider's `usage` object
+  sometimes omits `used` and only carries `remaining`. `windowFrom` now derives
+  `used = limit - remaining` when the direct field is absent (cc-switch does
+  the same), restoring the `week` window display.
+
 ## [0.7.5] - 2026-08-16
 
 ### Added (fork: plancost)
